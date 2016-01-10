@@ -93,3 +93,10 @@ LOCK
 LOG*
 CURRENT
 MANIFEST-*
+
+# vim helpers
+cscope.out
+tags
+
+# my build2
+build2
