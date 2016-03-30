@@ -21,6 +21,12 @@ void AbsdistLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   for(int i = 0; i < count; i++)
   {
     diff_.mutable_cpu_data()[i] = diff_.cpu_data()[i] > 0.0 ? 1.0 : -1.0;
+    //if(diff_.cpu_data()[i] > 0.5)
+    //    diff_.mutable_cpu_data()[i] = 1.0;
+    //else if(diff_.cpu_data()[i] < -0.5)
+    //    diff_.mutable_cpu_data()[i] = -1.0;
+    //else
+    //    diff_.mutable_cpu_data()[i] = 0.0;
   }
   //for(int i = 0; i < bottom[0]->num(); i++)
   //{

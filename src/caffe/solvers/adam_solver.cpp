@@ -41,7 +41,6 @@ void AdamSolver<Dtype>::ComputeUpdateValue(int param_id, Dtype rate) {
       (Dtype(1.) - pow(beta1, t));
   const int N = net_params[param_id]->count();
   const Dtype eps_hat = this->param_.delta();
-
   switch (Caffe::mode()) {
     case Caffe::CPU: {
     // update m <- \beta_1 m_{t-1} + (1-\beta_1)g_t
