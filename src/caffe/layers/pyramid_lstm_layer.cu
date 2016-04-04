@@ -2,7 +2,7 @@
 
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
-#include "caffe/layers/glstm_layer.hpp"
+#include "caffe/layers/pyramid_lstm_layer.hpp"
 
 namespace caffe {
 
@@ -70,7 +70,7 @@ __global__ void BackwardGates(
 }
 
 template <typename Dtype>
-void GLstmLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+void PyramidLstmLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const Dtype* input_data = bottom[0]->gpu_data();
   const Dtype* prev_state_data = bottom[1]->gpu_data();
@@ -121,7 +121,7 @@ void GLstmLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-void GLstmLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
+void PyramidLstmLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   for (int i = 0; i < 2; ++i) {
     caffe_gpu_set(bottom[i]->count(), Dtype(0),
@@ -243,6 +243,6 @@ void GLstmLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     (Dtype)1., input_diff);
 }
 
-INSTANTIATE_LAYER_GPU_FUNCS(GLstmLayer);
+INSTANTIATE_LAYER_GPU_FUNCS(PyramidLstmLayer);
 
 }  // namespace caffe

@@ -1,7 +1,7 @@
 #include <vector>
 
 #include "caffe/filler.hpp"
-#include "caffe/layers/glstm_layer.hpp"
+#include "caffe/layers/pyramid_lstm_layer.hpp"
 #include "caffe/util/math_functions.hpp"
 
 namespace caffe {
@@ -29,18 +29,16 @@ inline Dtype tanh_diff(Dtype x) {
 }
 
 template <typename Dtype>
-void GLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  GLstmParameter glstm_param = this->layer_param_.glstm_param();
-  CHECK((glstm_param.has_cross_dim()))
-      << "glstm_param.has_cross_dim()";
-  CHECK((glstm_param.has_weight_filler()))
-      << "glstm_param.has_weight_filler()";
-  CHECK((glstm_param.has_num_output()))
-      << "glstm_param.has_num_output()";
-  CHECK((glstm_param.has_weight_filler()))
-      << "glstm_param.has_weight_filler()";
-  channels_ = glstm_param.num_output();
+  PyramidLstmParameter pyramid_lstm_param = this->layer_param_.pyramid_lstm_param();
+  CHECK((pyramid_lstm_param.has_weight_filler()))
+      << "pyramid_lstm_param.has_weight_filler()";
+  CHECK((pyramid_lstm_param.has_num_output()))
+      << "pyramid_lstm_param.has_num_output()";
+  CHECK((pyramid_lstm_param.has_weight_filler()))
+      << "pyramid_lstm_param.has_weight_filler()";
+  channels_ = pyramid_lstm_param.num_output();
   input_data_size_ = bottom[0]->shape(1);
   num_ = bottom[0]->shape(0);
   M_ = num_;
@@ -54,7 +52,7 @@ void GLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
 
   shared_ptr<Filler<Dtype> > weight_filler(GetFiller<Dtype>(
-      glstm_param.weight_filler()));
+      pyramid_lstm_param.weight_filler()));
   weight_filler->Fill(this->blobs_[0].get());
   weight_filler->Fill(this->blobs_[1].get());
   weight_filler->Fill(this->blobs_[2].get());
@@ -77,14 +75,14 @@ void GLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-void GLstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+void PyramidLstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   CHECK((this->layer_param_.bottom_size() == 2
       || this->layer_param_.bottom_size() == 0))
-      << "GLstmLayer must have a data and cell bottom";
+      << "PyramidLstmLayer must have a data and cell bottom";
   CHECK((this->layer_param_.top_size() == 2
       || this->layer_param_.top_size() == 0))
-      << "GLstmLayer must have a data and cell top";
+      << "PyramidLstmLayer must have a data and cell top";
   input_gates_data_buffer_->Reshape(num_, channels_, 1, 1);
   forget_gates_data_buffer_->Reshape(num_, channels_, 1, 1);
   output_gates_data_buffer_->Reshape(num_, channels_, 1, 1);
@@ -100,7 +98,7 @@ void GLstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-void GLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+void PyramidLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const Dtype* input_data = bottom[0]->cpu_data();
   const Dtype* prev_state_data = bottom[1]->cpu_data();
@@ -147,7 +145,7 @@ void GLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-void GLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+void PyramidLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   for (int i = 0; i < 2; ++i) {
     caffe_set(bottom[i]->count(), Dtype(0),
@@ -257,10 +255,10 @@ void GLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(GLstmLayer);
+STUB_GPU(PyramidLstmLayer);
 #endif
 
-INSTANTIATE_CLASS(GLstmLayer);
-REGISTER_LAYER_CLASS(GLstm);
+INSTANTIATE_CLASS(PyramidLstmLayer);
+REGISTER_LAYER_CLASS(PyramidLstm);
 
 }  // namespace caffe

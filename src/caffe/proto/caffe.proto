@@ -396,14 +396,18 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
-  optional GLstmParameter glstm_param = 301;
+  optional PyramidLstmParameter pyramid_lstm_param = 301;
+  optional LstmUnitParameter lstm_unit_param = 302;
+}
+message LstmUnitParameter {
+  optional uint32 num_cells = 1;
+  optional FillerParameter input_weight_filler = 2; // The filler for the weight
+  optional FillerParameter input_gate_weight_filler = 3; // The filler for the weight
+  optional FillerParameter forget_gate_weight_filler = 4; // The filler for the weight
+  optional FillerParameter output_gate_weight_filler = 5; // The filler for the weight
 }
  //Configure the Grid-Lstm connection
-message GLstmParameter{
- // cross_dim specify the dimension that is connected with hidden and memory units.
- optional uint32 cross_dim = 1 [default = 0];
- // whether the output and hidden unit need to share 
- optional bool share_output = 2 [default = false];
+message PyramidLstmParameter {
  // the number of output
  optional uint32 num_output = 3;
  optional FillerParameter weight_filler = 4;

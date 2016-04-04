@@ -1,5 +1,5 @@
-#ifndef CAFFE_GLSTM_LAYER_HPP_
-#define CAFFE_GLSTM_LAYER_HPP_
+#ifndef CAFFE_LSTM_UNIT_LAYER_HPP_
+#define CAFFE_LSTM_UNIT_LAYER_HPP_
 
 #include <vector>
 #include <string>
@@ -10,9 +10,9 @@
 namespace caffe {
 
 template <typename Dtype>
-class GLstmLayer : public Layer<Dtype> {
+class LstmUnitLayer : public Layer<Dtype> {
  public:
-  explicit GLstmLayer(const LayerParameter& param)
+  explicit LstmUnitLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -20,7 +20,7 @@ class GLstmLayer : public Layer<Dtype> {
       const vector<Blob<Dtype>*>& top);
 
   virtual inline bool overwrites_param_diffs() { return true; }
-  virtual inline const char* type() const { return "GLstmLayer"; }
+  virtual inline const char* type() const { return "LstmUnitLayer"; }
 
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
