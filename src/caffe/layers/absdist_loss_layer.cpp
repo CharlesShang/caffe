@@ -1,5 +1,5 @@
 #include <vector>
-
+#include "caffe/layers/absdist_loss_layer.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
 

@@ -391,6 +391,17 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  optional GLstmParameter glstm_param = 301;
+}
+ //Configure the Grid-Lstm connection
+message GLstmParameter{
+ // cross_dim specify the dimension that is connected with hidden and memory units.
+ optional uint32 cross_dim = 1 [default = 0];
+ // whether the output and hidden unit need to share 
+ optional bool share_output = 2 [default = false];
+ // the number of output
+ optional uint32 num_output = 3;
+ optional FillerParameter weight_filler = 4;
 }
 
 // Message that stores parameters used to apply transformation
