@@ -193,7 +193,7 @@ void LstmUnitLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       next_memory_state[idx] = prev_state_data[idx] * forget_gates[idx] +
           input_gates[idx] * input_values[idx];
       tanh_next_memory_state[idx] = tanh(next_memory_state[idx]);
-      next_hidden_state[idx] = next_memory_state[idx] * output_gates[idx];
+      next_hidden_state[idx] = tanh_next_memory_state[idx] * output_gates[idx];
     }
   }
 }
