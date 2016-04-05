@@ -406,8 +406,8 @@ message LstmUnitParameter {
  //Configure the Grid-Lstm connection
 message PyramidLstmParameter {
  // the number of output
- optional uint32 num_output = 3;
- optional FillerParameter weight_filler = 4;
+ optional uint32 num_cells = 1;
+ optional FillerParameter weight_filler = 2;
 }
 
 // Message that stores parameters used to apply transformation

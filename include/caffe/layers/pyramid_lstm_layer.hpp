@@ -6,6 +6,9 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/layers/lstm_unit_layer.hpp"
+#include "caffe/layers/split_layer.hpp"
+#include "caffe/layers/transpose_layer.hpp"
 
 namespace caffe {
 
@@ -19,7 +22,6 @@ class PyramidLstmLayer : public Layer<Dtype> {
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline bool overwrites_param_diffs() { return false; }
   virtual inline const char* type() const { return "PyraimdLstmLayer"; }
 
  protected:
@@ -31,21 +33,38 @@ class PyramidLstmLayer : public Layer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  void add_to_learnable(vector<shared_ptr<Blob<Dtype> > > &lstm_blobs, 
+      vector<shared_ptr<Blob<Dtype> > > &this_blobs){
+    this_blobs.clear();
+    for (int i = 0; i < lstm_blobs.size(); i ++){
+      this_blobs.push_back(lstm_blobs[i]);
+    }
+  }
+  void transpose_cpu_blob( Blob<Dtype> * blob); // to transposed_data_
+  void transpose_gpu_blob( Blob<Dtype> * blob); // to transposed_data_
 
   int channels_;  // memory cells;
-  int num_;  // batch size;
-  int input_data_size_;
-  int M_;
-  int N_;
-  int K_;
-  vector<shared_ptr<Blob<Dtype> > > buffers_;
-  shared_ptr<Blob<Dtype> > input_gates_data_buffer_;
-  shared_ptr<Blob<Dtype> > forget_gates_data_buffer_;
-  shared_ptr<Blob<Dtype> > output_gates_data_buffer_;
-  shared_ptr<Blob<Dtype> > input_values_data_buffer_;
-  shared_ptr<Blob<Dtype> > gates_diff_buffer_;
-  shared_ptr<Blob<Dtype> > next_state_tot_diff_buffer_;
-  shared_ptr<Blob<Dtype> > dldg_buffer_;
+  int num_;       // batch size;
+  int sequences_;  // number of sequences
+
+  // lstm unit
+  shared_ptr<LstmUnitLayer<Dtype> > lstm_layer_;
+  vector<Blob<Dtype> *> lstm_bottom_vec_;
+  vector<Blob<Dtype> *> lstm_top_vec_;
+  shared_ptr<Blob<Dtype> > previous_hidden_; //should not share data with the output
+  shared_ptr<Blob<Dtype> > previous_mem_;
+  // inplace? 
+  shared_ptr<Blob<Dtype> > current_hidden_;  //should not share data with the output
+  shared_ptr<Blob<Dtype> > current_mem_;
+
+  // transpose N*C*H*W blob into (N*H*W)*C*1*1 blob
+  // before the lstm unit
+  shared_ptr<TransposeLayer<Dtype> > transpose_layer_;
+  vector<Blob<Dtype> *> transpose_bottom_vec_;
+  vector<Blob<Dtype> *> transpose_top_vec_;
+  shared_ptr<Blob<Dtype> > transposed_data_;
+  // there should be reverse transpose layer
+  // TODO
 };
 
 }

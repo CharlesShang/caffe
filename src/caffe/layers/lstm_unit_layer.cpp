@@ -38,7 +38,8 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << "lstm_unit_param.has_num_cells()";
   CHECK((lstm_unit_param.has_weight_filler()))
       << "lstm_unit_param.weight_filler()";
-  CHECK((bottom[0]->shape(0) == bottom[1]->shape(0) == bottom[2]->shape(0)))
+  CHECK((bottom[0]->shape(0) == bottom[1]->shape(0)  
+        &&  bottom[1]->shape(0) == bottom[2]->shape(0)))
       << "bottom do not have the same data number";
   CHECK((bottom[1]->shape(1) == bottom[2]->shape(1)))
       << "bottom do not have the same data dimension";
@@ -93,11 +94,12 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // Propagate gradients to the parameters (as directed by backward pass).
   this->param_propagate_down_.resize(this->blobs_.size(), true);
 
-  // set the internel concat layer
+  // set the internal layer
   concat_bottom_vec_.clear();
   concat_bottom_vec_.push_back(bottom[0]);
   concat_bottom_vec_.push_back(bottom[1]);
   concated_data_.reset(new Blob<Dtype>());
+  concated_data_->Reshape(num_, input_data_size_, 1, 1);
   concat_top_vec_.clear();
   concat_top_vec_.push_back(concated_data_.get());
   LayerParameter concate_param;

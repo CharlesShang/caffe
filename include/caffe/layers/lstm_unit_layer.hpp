@@ -7,6 +7,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/layers/concat_layer.hpp"
+#include "caffe/layers/transpose_layer.hpp"
 
 namespace caffe {
 
@@ -58,4 +59,4 @@ class LstmUnitLayer : public Layer<Dtype> {
 };
 
 }
-#endif
+#endif  // CAFFE_LSTM_UNIT_LAYER_HPP_
