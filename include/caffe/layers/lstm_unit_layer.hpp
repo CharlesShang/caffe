@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/layers/concat_layer.hpp"
 
 namespace caffe {
 
@@ -19,7 +20,7 @@ class LstmUnitLayer : public Layer<Dtype> {
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline bool overwrites_param_diffs() { return true; }
+  virtual inline bool overwrites_param_diffs() { return false; }
   virtual inline const char* type() const { return "LstmUnitLayer"; }
 
  protected:
@@ -32,7 +33,7 @@ class LstmUnitLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
-  int channels_;  // memory cells;
+  int channels_;  // num memory cells;
   int num_;  // batch size;
   int input_data_size_;
   int M_;
@@ -45,7 +46,15 @@ class LstmUnitLayer : public Layer<Dtype> {
   shared_ptr<Blob<Dtype> > input_values_data_buffer_;
   shared_ptr<Blob<Dtype> > gates_diff_buffer_;
   shared_ptr<Blob<Dtype> > next_state_tot_diff_buffer_;
+  shared_ptr<Blob<Dtype> > tanh_mem_buffer_;
   shared_ptr<Blob<Dtype> > dldg_buffer_;
+
+  // the internal concat layer for concat the input and previous state
+  shared_ptr<ConcatLayer<Dtype> > concat_layer_;
+  // the data concated using input and previous memory cell
+  shared_ptr<Blob<Dtype> > concated_data_;
+  vector<Blob<Dtype>*> concat_bottom_vec_;
+  vector<Blob<Dtype>*> concat_top_vec_;
 };
 
 }

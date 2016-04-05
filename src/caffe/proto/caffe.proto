@@ -401,10 +401,7 @@ message LayerParameter {
 }
 message LstmUnitParameter {
   optional uint32 num_cells = 1;
-  optional FillerParameter input_weight_filler = 2; // The filler for the weight
-  optional FillerParameter input_gate_weight_filler = 3; // The filler for the weight
-  optional FillerParameter forget_gate_weight_filler = 4; // The filler for the weight
-  optional FillerParameter output_gate_weight_filler = 5; // The filler for the weight
+  optional FillerParameter weight_filler = 2; // The filler for the weight
 }
  //Configure the Grid-Lstm connection
 message PyramidLstmParameter {

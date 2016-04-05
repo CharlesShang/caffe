@@ -36,8 +36,6 @@ void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << "pyramid_lstm_param.has_weight_filler()";
   CHECK((pyramid_lstm_param.has_num_output()))
       << "pyramid_lstm_param.has_num_output()";
-  CHECK((pyramid_lstm_param.has_weight_filler()))
-      << "pyramid_lstm_param.has_weight_filler()";
   channels_ = pyramid_lstm_param.num_output();
   input_data_size_ = bottom[0]->shape(1);
   num_ = bottom[0]->shape(0);
