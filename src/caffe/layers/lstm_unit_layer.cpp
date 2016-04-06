@@ -19,7 +19,7 @@ inline Dtype sigmoid_diff(Dtype x) {
 template <typename Dtype>
 inline Dtype tanh(Dtype x) {
   Dtype exp2x = exp(2 * x);
-  return fabs(x) < Dtype(5) ? ((exp2x - Dtype(1)) / (exp2x + Dtype(1)))
+  return fabs(x) < Dtype(10) ? ((exp2x - Dtype(1)) / (exp2x + Dtype(1)))
     : (x > 0 ? Dtype(1) : Dtype(-1));
 }
 
@@ -38,21 +38,22 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << "lstm_unit_param.has_num_cells()";
   CHECK((lstm_unit_param.has_weight_filler()))
       << "lstm_unit_param.weight_filler()";
-  CHECK((bottom[0]->shape(0) == bottom[1]->shape(0)  
-        &&  bottom[1]->shape(0) == bottom[2]->shape(0)))
-      << "bottom do not have the same data number";
-  CHECK((bottom[1]->shape(1) == bottom[2]->shape(1)))
+  CHECK((bottom[0]->num() == bottom[1]->num()  
+        &&  bottom[1]->num() == bottom[2]->num()))
+      << "bottom do not have the same data number" << bottom[0]->num();
+  CHECK((bottom[1]->channels() == bottom[2]->channels()))
       << "bottom do not have the same data dimension";
-  CHECK((bottom[0]->shape(2) == 1 && bottom[0]->shape(3) == 1 \
-        && bottom[1]->shape(2) == 1 && bottom[1]->shape(3) == 1\
-        && bottom[2]->shape(2) == 1 && bottom[2]->shape(3) == 1))
+  CHECK((bottom[0]->height() == 1 && bottom[0]->width() == 1 \
+        && bottom[1]->height() == 1 && bottom[1]->width() == 1\
+        && bottom[2]->height() == 1 && bottom[2]->width() == 1))
       << "bottom spatial dimension is not 1";
 
   // the output dimension
+  num_ = bottom[0]->num();
   channels_ = lstm_unit_param.num_cells();
-  CHECK_EQ(channels_, bottom[1]->shape(1)) <<
+  CHECK_EQ(channels_, bottom[1]->channels()) <<
     "Number of input memory channels must match the number of lstm mem_cells";
-  input_data_size_ = bottom[0]->shape(1) + bottom[1]->shape(1);
+  input_data_size_ = bottom[0]->channels() + bottom[1]->channels();
   N_ = channels_;
   K_ = input_data_size_;
   // blobs_ is used to save learnable parameters
@@ -102,9 +103,9 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   concated_data_->Reshape(num_, input_data_size_, 1, 1);
   concat_top_vec_.clear();
   concat_top_vec_.push_back(concated_data_.get());
-  LayerParameter concate_param;
-  concate_param.mutable_concat_param()->set_axis(1);
-  concat_layer_.reset(new ConcatLayer<Dtype>(concate_param));
+  LayerParameter concat_param;
+  concat_param.mutable_concat_param()->set_axis(1);
+  concat_layer_.reset(new ConcatLayer<Dtype>(concat_param));
   concat_layer_->SetUp(concat_bottom_vec_, concat_top_vec_);
 }
 
@@ -117,7 +118,7 @@ void LstmUnitLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   CHECK((this->layer_param_.top_size() == 3
       || this->layer_param_.top_size() == 0))
       << "LstmUnit must have an output and cell top";
-  num_ = bottom[0]->shape(0);
+  num_ = bottom[0]->num();
   M_ = num_;
   input_gates_data_buffer_->Reshape(num_, channels_, 1, 1);
   forget_gates_data_buffer_->Reshape(num_, channels_, 1, 1);
@@ -136,11 +137,8 @@ void LstmUnitLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   concat_bottom_vec_.push_back(bottom[1]);
   concat_layer_->Reshape(concat_bottom_vec_, concat_top_vec_);
 
-  vector<int> shape;
-  shape.push_back(num_);
-  shape.push_back(channels_);
-  top[0]->Reshape(shape);
-  top[1]->Reshape(shape);
+  top[0]->Reshape(num_, channels_, 1, 1);
+  top[1]->Reshape(num_, channels_, 1, 1);
 }
 
 template <typename Dtype>

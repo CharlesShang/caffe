@@ -7,6 +7,43 @@
 namespace caffe {
 
 template <typename Dtype>
+void check_value_(Blob<Dtype> *in, Blob<Dtype> * out){
+  for (int n = 0; n < in->num(); n++){
+    for(int c = 0; c < in->channels(); c++) {
+      for (int h = 0; h < in->height(); ++h){
+        for(int w = 0; w < in->height(); w ++){
+          int index1 = w + h * in->width() + c * in->height() * in->width()
+            + n * in->channels() * in->height() * in->width();
+          int index2 = (w + h * in->width()) * in->channels() + c
+            + n * in->channels() * in->height() * in->width();
+            if(fabs(in->cpu_data()[index1] - out->cpu_data()[index2]) > 1e-8){
+                std::cout << "data: "<< in->cpu_data()[index1] << " " << out->cpu_data()[index2] << "\n";
+            }
+        }
+      }
+    }
+  }
+}
+template <typename Dtype>
+void check_diff_(Blob<Dtype> *in, Blob<Dtype> * out){
+  for (int n = 0; n < in->num(); n++){
+    for(int c = 0; c < in->channels(); c++) {
+      for (int h = 0; h < in->height(); ++h){
+        for(int w = 0; w < in->height(); w ++){
+          int index1 = w + h * in->width() + c * in->height() * in->width()
+            + n * in->channels() * in->height() * in->width();
+          int index2 = (w + h * in->width()) * in->channels() + c
+            + n * in->channels() * in->height() * in->width();
+            if(fabs(in->cpu_diff()[index1] - out->cpu_diff()[index2]) > 1e-8){
+                std::cout << "diff: " << in->cpu_diff()[index1] << " " << out->cpu_diff()[index2] << "\n";
+            }
+        }
+      }
+    }
+  }
+}
+
+template <typename Dtype>
 void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   PyramidLstmParameter pyramid_lstm_param = this->layer_param_.pyramid_lstm_param();
@@ -14,9 +51,10 @@ void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << "pyramid_lstm_param.has_weight_filler()";
   CHECK((pyramid_lstm_param.has_num_cells()))
       << "pyramid_lstm_param.has_num_cells()";
-  const int width  = bottom[0]->shape(3);
-  const int height = bottom[0]->shape(2);
-  const int batch  = bottom[0]->shape(0);
+  const int width  = bottom[0]->width();
+  const int height = bottom[0]->height();
+  const int channels = bottom[0]->channels();
+  const int batch  = bottom[0]->num();
 
   sequences_ = bottom.size();
   channels_ = pyramid_lstm_param.num_cells();
@@ -25,8 +63,11 @@ void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // call transpose layer setup
   LayerParameter transpose_param;
   transpose_layer_.reset(new TransposeLayer<Dtype>(transpose_param));
+  transpose_bottom_vec_.clear();
   transpose_bottom_vec_.push_back(bottom[0]);
   transposed_data_.reset(new Blob<Dtype>());
+  transposed_data_->Reshape(num_, channels, 1, 1);
+  transpose_top_vec_.clear();
   transpose_top_vec_.push_back(transposed_data_.get());
   transpose_layer_->SetUp(transpose_bottom_vec_, transpose_top_vec_);
 
@@ -38,7 +79,9 @@ void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     ->CopyFrom(pyramid_lstm_param.weight_filler());
   lstm_layer_.reset(new LstmUnitLayer<Dtype>(lstm_unit_param));
   previous_hidden_.reset(new Blob<Dtype>());
+  previous_hidden_->Reshape(num_, channels_, 1, 1);
   previous_mem_.reset(new Blob<Dtype>());
+  previous_mem_->Reshape(num_, channels_, 1, 1);
   lstm_bottom_vec_.clear();
   lstm_top_vec_.clear();
   lstm_top_vec_.push_back(previous_hidden_.get());
@@ -55,14 +98,13 @@ void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void PyramidLstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  CHECK((this->layer_param_.bottom_size() > 1))
-      << "PyramidLstmLayer must have a sequential input";
-  CHECK_EQ(this->layer_param_.bottom_size(), \
-            this->layer_param_.top_size())
+  // CHECK((bottom.size() > 1))
+  //     << "PyramidLstmLayer must have a sequential input ";
+  CHECK_EQ(bottom.size(), top.size())
       << "PyramidLstmLayer top bottom are NOT equal";
-  const int width  = bottom[0]->shape(3);
-  const int height = bottom[0]->shape(2);
-  const int batch  = bottom[0]->shape(0);
+  const int width  = bottom[0]->width();
+  const int height = bottom[0]->height();
+  const int batch  = bottom[0]->num();
 
   sequences_ = bottom.size();
   num_ = batch * width * height;
@@ -79,6 +121,7 @@ void PyramidLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   CHECK_EQ(sequences_, bottom.size());
   CHECK_EQ(sequences_, top.size());
+  // set the seed to zeros
   caffe_set<Dtype>(num_ * channels_, Dtype(0.), previous_mem_->mutable_cpu_data());
   caffe_set<Dtype>(num_ * channels_, Dtype(0.), previous_hidden_->mutable_cpu_data());
   lstm_bottom_vec_.clear();
@@ -123,7 +166,7 @@ void PyramidLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     caffe_add<Dtype>(num_ * channels_, previous_hidden_->cpu_diff(),
       output->cpu_diff(), previous_hidden_->mutable_cpu_diff());
     // BP lstm
-    vector<bool> propagate_down(3, true);
+    vector<bool> propagate_down(lstm_bottom_vec_.size(), true);
     lstm_layer_->Backward(lstm_top_vec_, propagate_down, lstm_bottom_vec_);
     // BP transpose
     transpose_blob_backward(transposed_data_.get(), input);
@@ -138,6 +181,7 @@ void PyramidLstmLayer<Dtype>::transpose_blob_forward(Blob<Dtype> * bottom,
   transpose_bottom_vec_.push_back(bottom);
   transpose_top_vec_.push_back(top);
   transpose_layer_->Forward(transpose_bottom_vec_, transpose_top_vec_);
+  check_value_(transpose_bottom_vec_[0], transpose_top_vec_[0]);
 }
 template <typename Dtype>
 void PyramidLstmLayer<Dtype>::transpose_blob_backward(Blob<Dtype> * top, 
@@ -149,6 +193,7 @@ void PyramidLstmLayer<Dtype>::transpose_blob_backward(Blob<Dtype> * top,
   vector<bool> propagate_down(1, true);
   transpose_layer_->Backward(transpose_top_vec_, propagate_down, 
     transpose_bottom_vec_);
+  check_diff_(transpose_bottom_vec_[0], transpose_top_vec_[0]);
 }
 
 #ifdef CPU_ONLY

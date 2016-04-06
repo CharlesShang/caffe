@@ -6,12 +6,33 @@
 namespace caffe {
 
 template <typename Dtype>
+inline void debug_print(Blob<Dtype> *x) {
+  std::cout << "axis" << x->num_axes() << "\n";
+  const Dtype * data = x->cpu_data();
+  for (int n = 0; n < x->num(); n++){
+    std::cout << "num " << n << "\n";
+    for(int c = 0; c < x->channels(); c++) {
+      std::cout << "channel " << c << "\n";
+      for (int h = 0; h < x->height(); ++h){
+        for(int w = 0; w < x->height(); w ++){
+          int index = w + h * w + c * h * w + n * c * h * w;
+          std::cout << data[index] << " ";
+        }
+        std::cout << "\n";
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "\n";
+}
+
+template <typename Dtype>
 void TransposeLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  vector<int> top_shape(2);
-  top_shape[0] = bottom[0]->num() * bottom[0]->height() * bottom[0]->width();
-  top_shape[1] = bottom[0]->channels();
-  top[0]->Reshape(top_shape);
+  const int num = bottom[0]->num() * bottom[0]->height() * bottom[0]->width();
+  const int channel = bottom[0]->channels();
+  top[0]->Reshape(num, channel, 1, 1);
   CHECK_EQ(top[0]->count(), bottom[0]->count());
 }
 
@@ -39,7 +60,7 @@ void TransposeLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   const Dtype* top_diff = top[0]->cpu_diff();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
-
+  
   const int spatial_dim = bottom[0]->height() * bottom[0]->width();
   const int channels = bottom[0]->channels();
   for (int n = 0; n < bottom[0]->num(); ++n) {

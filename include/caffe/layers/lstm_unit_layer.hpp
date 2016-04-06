@@ -22,7 +22,7 @@ class LstmUnitLayer : public Layer<Dtype> {
       const vector<Blob<Dtype>*>& top);
 
   virtual inline bool overwrites_param_diffs() { return false; }
-  virtual inline const char* type() const { return "LstmUnitLayer"; }
+  virtual inline const char* type() const { return "LstmUnit"; }
 
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,

@@ -19,7 +19,7 @@ class AbsdistLossLayer : public LossLayer<Dtype> {
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline const char* type() const { return "EuclideanLoss"; }
+  virtual inline const char* type() const { return "AbsdistLoss"; }
   /**
    * Unlike most loss layers, in the AbsdistLossLayer we can backpropagate
    * to both inputs -- override to return true and always allow force_backward.

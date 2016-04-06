@@ -24,7 +24,7 @@ class PyramidLstmLayer : public Layer<Dtype> {
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
 
-  virtual inline const char* type() const { return "PyraimdLstmLayer"; }
+  virtual inline const char* type() const { return "PyramidLstm"; }
 
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
