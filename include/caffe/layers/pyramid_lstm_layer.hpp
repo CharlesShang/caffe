@@ -55,7 +55,7 @@ class PyramidLstmLayer : public Layer<Dtype> {
   vector<Blob<Dtype> *> lstm_top_vec_;
   shared_ptr<Blob<Dtype> > previous_hidden_; //should not share data with the output
   shared_ptr<Blob<Dtype> > previous_mem_;
-  // inplace?
+  // sharing memory cells and hidden generates wired output
   shared_ptr<Blob<Dtype> > current_hidden_;  //should not share data with the output
   shared_ptr<Blob<Dtype> > current_mem_;
 
