@@ -206,6 +206,9 @@ void LstmUnitLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     next_state_tot_diff, next_state_tot_diff);
   caffe_gpu_add(num_ * channels_, next_memory_state_diff,
     next_state_tot_diff, next_state_tot_diff);
+  
+  // caffe_gpu_axpby(num_ * channels_, Dtype(0), next_state_tot_diff,
+  //   Dtype(0.5), next_state_tot_diff);
 
   caffe_gpu_mul(num_ * channels_, next_state_tot_diff,
     forget_gates, prev_state_diff);
@@ -257,6 +260,8 @@ void LstmUnitLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     (Dtype)1., dldg_data, output_gate_weight,
     (Dtype)1., input_diff);
 
+  // caffe_gpu_axpby(num_ * input_data_size_, Dtype(0), input_diff,
+  //   Dtype(0.25), input_diff);
   vector<bool> concat_propagate_down(2, true);
   concat_layer_->Backward(concat_top_vec_, concat_propagate_down, concat_bottom_vec_);
 

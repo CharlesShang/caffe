@@ -66,12 +66,12 @@ class PyramidLstmLayerTest : public MultiDeviceTest<TypeParam> {
 
     blob_bottom_vec_.push_back(blob_bottom_);
     blob_bottom_vec_.push_back(blob_bottom2_);
-    // blob_bottom_vec_.push_back(blob_bottom3_);
-    // blob_bottom_vec_.push_back(blob_bottom4_);
+    blob_bottom_vec_.push_back(blob_bottom3_);
+    blob_bottom_vec_.push_back(blob_bottom4_);
     blob_top_vec_.push_back(blob_top_);
     blob_top_vec_.push_back(blob_top2_);
-    // blob_top_vec_.push_back(blob_top3_);
-    // blob_top_vec_.push_back(blob_top4_);
+    blob_top_vec_.push_back(blob_top3_);
+    blob_top_vec_.push_back(blob_top4_);
   }
   virtual ~PyramidLstmLayerTest() {
     delete blob_bottom_;
@@ -137,14 +137,14 @@ TYPED_TEST(PyramidLstmLayerTest, TestGradientAcrossChannels) {
   pyramid_lstm_param->mutable_weight_filler()->set_type("xavier");
 
   PyramidLstmLayer<Dtype> layer(layer_param);
-  GradientChecker<Dtype> checker(1e-4, 1e-2);
+  GradientChecker<Dtype> checker(1e-2, 1e-2);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   // layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-  // for (int i = 0; i < this->blob_top_->count(); ++i) {
-  //   this->blob_top_->mutable_cpu_diff()[i] = 1.;
+  // for (int i = 0; i < this->blob_bottom_->count(); ++i) {
+  //   this->blob_bottom_->mutable_cpu_diff()[i] = 1.;
   // }
-  // for (int i = 0; i < this->blob_top2_->count(); ++i) {
-  //   this->blob_top2_->mutable_cpu_diff()[i] = 1.;
+  // for (int i = 0; i < this->blob_bottom2_->count(); ++i) {
+  //   this->blob_bottom2_->mutable_cpu_diff()[i] = 1.;
   // }
   // vector<bool> propagate_down(this->blob_bottom_vec_.size(), true);
   // layer.Backward(this->blob_top_vec_, propagate_down,

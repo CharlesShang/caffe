@@ -140,15 +140,15 @@ TYPED_TEST(TransposeLayerTest, TestGradientAcrossChannels) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   TransposeLayer<Dtype> layer(layer_param);
-  GradientChecker<Dtype> checker(1e-4, 1e-2);
+  GradientChecker<Dtype> checker(1e-3, 1e-4);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-  for (int i = 0; i < this->blob_top_->count(); ++i) {
-    this->blob_top_->mutable_cpu_diff()[i] = 1.;
-  }
-  vector<bool> propagate_down(this->blob_bottom_vec_.size(), true);
-  layer.Backward(this->blob_top_vec_, propagate_down,
-                 this->blob_bottom_vec_);
+  // layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  // for (int i = 0; i < this->blob_top_->count(); ++i) {
+  //   this->blob_top_->mutable_cpu_diff()[i] = 1.;
+  // }
+  // vector<bool> propagate_down(this->blob_bottom_vec_.size(), true);
+  // layer.Backward(this->blob_top_vec_, propagate_down,
+  //                this->blob_bottom_vec_);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
       this->blob_top_vec_);
 }

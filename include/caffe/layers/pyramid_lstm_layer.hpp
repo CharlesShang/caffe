@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
@@ -53,12 +54,14 @@ class PyramidLstmLayer : public Layer<Dtype> {
   shared_ptr<LstmUnitLayer<Dtype> > lstm_layer_;
   vector<Blob<Dtype> *> lstm_bottom_vec_;
   vector<Blob<Dtype> *> lstm_top_vec_;
-  shared_ptr<Blob<Dtype> > previous_hidden_; //should not share data with the output
-  shared_ptr<Blob<Dtype> > previous_mem_;
-  // sharing memory cells and hidden generates wired output
-  shared_ptr<Blob<Dtype> > current_hidden_;  //should not share data with the output
-  shared_ptr<Blob<Dtype> > current_mem_;
+  // cache all the middle output
+  vector<shared_ptr<Blob<Dtype> > > lstm_mem_cache_; 
+  vector<shared_ptr<Blob<Dtype> > > lstm_hidden_cache_; 
 
+  shared_ptr<Blob<Dtype> > previous_hidden_;
+  shared_ptr<Blob<Dtype> > previous_mem_;
+  shared_ptr<Blob<Dtype> > current_hidden_;
+  shared_ptr<Blob<Dtype> > current_mem_;
   // transpose N*C*H*W blob into (N*H*W)*C*1*1 blob
   // before the lstm unit
   shared_ptr<TransposeLayer<Dtype> > transpose_layer_;
