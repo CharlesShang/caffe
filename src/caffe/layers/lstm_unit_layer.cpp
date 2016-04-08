@@ -53,14 +53,14 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   channels_ = lstm_unit_param.num_cells();
   CHECK_EQ(channels_, bottom[1]->channels()) <<
     "Number of input memory channels must match the number of lstm mem_cells";
-  input_data_size_ = bottom[0]->channels() + bottom[1]->channels();
+  input_data_dim_ = bottom[0]->channels() + bottom[1]->channels();
   N_ = channels_;
-  K_ = input_data_size_;
+  K_ = input_data_dim_;
   // blobs_ is used to save learnable parameters
   this->blobs_.resize(4);
   for (int i = 0; i < 4; ++i) {
       this->blobs_[i].reset(new Blob<Dtype>(
-          1, channels_, 1, input_data_size_));
+          1, channels_, 1, input_data_dim_));
   }
 
   shared_ptr<Filler<Dtype> > input_weight_filler(GetFiller<Dtype>(
@@ -100,7 +100,7 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   concat_bottom_vec_.push_back(bottom[0]);
   concat_bottom_vec_.push_back(bottom[1]);
   concated_data_.reset(new Blob<Dtype>());
-  concated_data_->Reshape(num_, input_data_size_, 1, 1);
+  concated_data_->Reshape(num_, input_data_dim_, 1, 1);
   concat_top_vec_.clear();
   concat_top_vec_.push_back(concated_data_.get());
   LayerParameter concat_param;
@@ -129,7 +129,7 @@ void LstmUnitLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   tanh_mem_buffer_->Reshape(num_, channels_, 1, 1);
   dldg_buffer_->Reshape(num_, channels_, 1, 1);
   // internal concat layer
-  concated_data_->Reshape(num_, input_data_size_, 1, 1);
+  concated_data_->Reshape(num_, input_data_dim_, 1, 1);
   concat_top_vec_.clear();
   concat_top_vec_.push_back(concated_data_.get());
   concat_bottom_vec_.clear();
@@ -244,7 +244,7 @@ void LstmUnitLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   Dtype* output_gate_weight_diff = this->blobs_[3]->mutable_cpu_diff();
 
   Dtype* input_diff = concat_top_vec_[0]->mutable_cpu_diff();
-  // caffe_set<Dtype>(num_ * input_data_size_, Dtype(0.), input_diff);
+  // caffe_set<Dtype>(num_ * input_data_dim_, Dtype(0.), input_diff);
   Dtype* prev_state_diff = bottom[2]->mutable_cpu_diff();
   // caffe_set<Dtype>(num_ * channels_, Dtype(0.), prev_state_diff);
 
@@ -274,11 +274,11 @@ void LstmUnitLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   caffe_mul(num_ * channels_, input_gates, input_values_diff, dldg_data);
   caffe_mul(num_ * channels_, next_state_tot_diff, dldg_data, dldg_data);
   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., input_weight_diff);
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, input_weight,
     (Dtype)1., input_diff);
 
@@ -286,11 +286,11 @@ void LstmUnitLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   caffe_mul(num_ * channels_, input_gates_diff, input_values, dldg_data);
   caffe_mul(num_ * channels_, next_state_tot_diff, dldg_data, dldg_data);
   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., input_gate_weight_diff);
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, input_gate_weight,
     (Dtype)1., input_diff);
 
@@ -298,11 +298,11 @@ void LstmUnitLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   caffe_mul(num_ * channels_, forget_gates_diff, prev_state_data, dldg_data);
   caffe_mul(num_ * channels_, next_state_tot_diff, dldg_data, dldg_data);
   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., forget_gate_weight_diff);
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, forget_gate_weight,
     (Dtype)1., input_diff);
 
@@ -310,15 +310,15 @@ void LstmUnitLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   caffe_mul(num_ * channels_, output_gates_diff, tanh_next_memory_state, dldg_data);
   caffe_mul(num_ * channels_, next_hidden_state_diff, dldg_data, dldg_data);
   caffe_cpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., output_gate_weight_diff);
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, output_gate_weight,
     (Dtype)1., input_diff);
 
-  // caffe_cpu_axpby(num_ * input_data_size_, Dtype(0), input_diff,
+  // caffe_cpu_axpby(num_ * input_data_dim_, Dtype(0), input_diff,
   //   Dtype(0.25), input_diff);
 
   // BP concat layer

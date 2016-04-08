@@ -36,7 +36,7 @@ class LstmUnitLayer : public Layer<Dtype> {
 
   int channels_;  // num memory cells;
   int num_;  // batch size;
-  int input_data_size_;
+  int input_data_dim_;
   int M_;
   int N_;
   int K_;

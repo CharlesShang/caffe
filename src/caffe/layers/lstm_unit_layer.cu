@@ -218,33 +218,33 @@ void LstmUnitLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   caffe_gpu_mul(num_ * channels_, input_gates, input_values_diff, dldg_data);
   caffe_gpu_mul(num_ * channels_, next_state_tot_diff, dldg_data, dldg_data);
   caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., input_weight_diff);
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, input_weight,
     (Dtype)1., input_diff);
 
   caffe_gpu_mul(num_ * channels_, input_gates_diff, input_values, dldg_data);
   caffe_gpu_mul(num_ * channels_, next_state_tot_diff, dldg_data, dldg_data);
   caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., input_gate_weight_diff);
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, input_gate_weight,
     (Dtype)1., input_diff);
 
     caffe_gpu_mul(num_ * channels_, forget_gates_diff, prev_state_data, dldg_data);
     caffe_gpu_mul(num_ * channels_, next_state_tot_diff, dldg_data, dldg_data);
     caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-      channels_, input_data_size_, num_,
+      channels_, input_data_dim_, num_,
       (Dtype)1., dldg_data, input_data,
       (Dtype)1., forget_gate_weight_diff);
     caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-      num_, input_data_size_, channels_,
+      num_, input_data_dim_, channels_,
       (Dtype)1., dldg_data, forget_gate_weight,
       (Dtype)1., input_diff);
 
@@ -252,15 +252,15 @@ void LstmUnitLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     dldg_data);
   caffe_gpu_mul(num_ * channels_, next_hidden_state_diff, dldg_data, dldg_data);
   caffe_gpu_gemm<Dtype>(CblasTrans, CblasNoTrans,
-    channels_, input_data_size_, num_,
+    channels_, input_data_dim_, num_,
     (Dtype)1., dldg_data, input_data,
     (Dtype)1., output_gate_weight_diff);
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
-    num_, input_data_size_, channels_,
+    num_, input_data_dim_, channels_,
     (Dtype)1., dldg_data, output_gate_weight,
     (Dtype)1., input_diff);
 
-  // caffe_gpu_axpby(num_ * input_data_size_, Dtype(0), input_diff,
+  // caffe_gpu_axpby(num_ * input_data_dim_, Dtype(0), input_diff,
   //   Dtype(0.25), input_diff);
   vector<bool> concat_propagate_down(2, true);
   concat_layer_->Backward(concat_top_vec_, concat_propagate_down, concat_bottom_vec_);
