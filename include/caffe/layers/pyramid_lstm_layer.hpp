@@ -52,6 +52,8 @@ class PyramidLstmLayer : public Layer<Dtype> {
 
   // lstm unit
   shared_ptr<LstmUnitLayer<Dtype> > lstm_layer_;
+  // all the layers should share the same blobs_
+  vector<shared_ptr<LstmUnitLayer<Dtype> > > lstm_layers_;
   vector<Blob<Dtype> *> lstm_bottom_vec_;
   vector<Blob<Dtype> *> lstm_top_vec_;
   // cache all the middle output

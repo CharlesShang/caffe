@@ -102,6 +102,17 @@ void PyramidLstmLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   lstm_top_vec_.push_back(previous_mem_.get());
   lstm_layer_->SetUp(lstm_bottom_vec_, lstm_top_vec_);
   add_to_learnable(lstm_layer_->blobs(), this->blobs_);
+  lstm_layers_.clear();
+  lstm_layers_.push_back(lstm_layer_);
+  for (int i = 1; i < sequences_; ++i){
+    lstm_layer_.reset(new LstmUnitLayer<Dtype>(lstm_unit_param));
+    lstm_layer_->SetUp(lstm_bottom_vec_, lstm_top_vec_);
+    // sharing learnable blobs
+    for (int b = 0; b < 4; ++ b){
+      lstm_layer_->blobs()[b] = this->blobs_[b];
+    }
+    lstm_layers_.push_back(lstm_layer_);
+  }
   // Propagate gradients to the parameters (as directed by backward pass).
   this->param_propagate_down_.resize(this->blobs_.size(), true);
 }
@@ -165,7 +176,8 @@ void PyramidLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     // TODO: avoid transpose
     transpose_blob_forward(input, lstm_bottom_vec_[0]);
     // FP lstm 
-    lstm_layer_->Forward(lstm_bottom_vec_, lstm_top_vec_);
+    // lstm_layer_->Forward(lstm_bottom_vec_, lstm_top_vec_);
+    lstm_layers_[i]->Forward(lstm_bottom_vec_, lstm_top_vec_);
     // copy to output
     caffe_copy<Dtype>(num_ * channels_, lstm_top_vec_[0]->cpu_data(), 
       output->mutable_cpu_data());
@@ -213,9 +225,10 @@ void PyramidLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       Dtype(1), lstm_top_vec_[0]->mutable_cpu_diff());
     // BP lstm
     transpose_blob_forward(input, lstm_bottom_vec_[0]);
-    lstm_layer_->Forward(lstm_bottom_vec_, lstm_top_vec_);
     vector<bool> propagate_down(lstm_bottom_vec_.size(), true);
-    lstm_layer_->Backward(lstm_top_vec_, propagate_down, lstm_bottom_vec_);
+    // lstm_layer_->Forward(lstm_bottom_vec_, lstm_top_vec_);
+    // lstm_layer_->Backward(lstm_top_vec_, propagate_down, lstm_bottom_vec_);
+    lstm_layers_[i]->Backward(lstm_top_vec_, propagate_down, lstm_bottom_vec_);
     // BP transpose
     transpose_blob_backward(lstm_bottom_vec_[0], input);
     // prepare next computing
