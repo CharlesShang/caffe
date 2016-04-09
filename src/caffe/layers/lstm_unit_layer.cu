@@ -31,7 +31,6 @@ __device__ Dtype cuda_tanh_diff(Dtype x) {
 template <typename Dtype>
 __global__ void ForwardCombineGates(
   int n,
-  bool tanh_hidden,
   const Dtype* prev_state_data,
   Dtype* input_gates,
   Dtype* forget_gates,
@@ -48,11 +47,7 @@ __global__ void ForwardCombineGates(
 
     next_memory_state[idx] = prev_state_data[idx] * forget_gates[idx] +
         input_gates[idx] * input_values[idx];
-    if (tanh_hidden) {
-      tanh_next_memory_state[idx] = cuda_tanh(next_memory_state[idx]);
-    } else {
-      tanh_next_memory_state[idx] = next_memory_state[idx];
-    }
+    tanh_next_memory_state[idx] = cuda_tanh(next_memory_state[idx]);
     next_hidden_state[idx] = tanh_next_memory_state[idx] * output_gates[idx];
   }
 }
@@ -60,7 +55,6 @@ __global__ void ForwardCombineGates(
 template <typename Dtype>
 __global__ void BackwardGates(
   int n,
-  bool tanh_hidden,
   const Dtype* input_gates,
   const Dtype* forget_gates,
   const Dtype* output_gates,
@@ -76,11 +70,7 @@ __global__ void BackwardGates(
     forget_gates_diff[idx] = cuda_sigmoid_diff(forget_gates[idx]);
     output_gates_diff[idx] = cuda_sigmoid_diff(output_gates[idx]);
     input_values_diff[idx] = cuda_tanh_diff(input_values[idx]);
-    if (tanh_hidden) {
-      tanh_next_memory_diff[idx] = cuda_tanh_diff(tanh_next_memory_state[idx]);
-    } else {
-      tanh_next_memory_diff[idx] = Dtype(1.);
-    }
+    tanh_next_memory_diff[idx] = cuda_tanh_diff(tanh_next_memory_state[idx]);
   }
 }
 
@@ -129,7 +119,6 @@ void LstmUnitLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   ForwardCombineGates<Dtype><<<CAFFE_GET_BLOCKS(count),
         CAFFE_CUDA_NUM_THREADS>>>(
       count,
-      true,
       prev_state_data,
       input_gates,
       forget_gates,
@@ -174,7 +163,6 @@ void LstmUnitLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   // NOLINT_NEXT_LINE(whitespace/operators)
   BackwardGates<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
     count,
-    true,
     input_gates,
     forget_gates,
     output_gates,

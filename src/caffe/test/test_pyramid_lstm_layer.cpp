@@ -16,10 +16,10 @@
 #include "caffe/test/test_gradient_check_util.hpp"
 
 #define NUM_CELLS 3
-#define BATCH_SIZE 1
+#define BATCH_SIZE 2
 #define WIDTH  2
 #define HEIGHT 2
-#define INPUT_DATA_SIZE 4
+#define INPUT_DATA_SIZE 3
 
 using std::min;
 using std::max;
@@ -108,10 +108,10 @@ TYPED_TEST(PyramidLstmLayerTest, TestSetupAcrossChannels) {
   for(int i = 0; i < this->blob_top_vec_.size(); i++)
   {
     Blob<Dtype>* blob_ = this->blob_top_vec_[i];
-    EXPECT_EQ(blob_->num(), BATCH_SIZE * HEIGHT * WIDTH);
+    EXPECT_EQ(blob_->num(), BATCH_SIZE);
     EXPECT_EQ(blob_->channels(), NUM_CELLS);
-    EXPECT_EQ(blob_->height(), 1);
-    EXPECT_EQ(blob_->width(), 1);
+    EXPECT_EQ(blob_->height(), HEIGHT);
+    EXPECT_EQ(blob_->width(), WIDTH);
   }
 }
 

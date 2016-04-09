@@ -136,7 +136,7 @@ void PyramidLstmLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   transpose_top_vec_.resize(1);
   for (int i = 0; i < sequences_; i ++)
   {
-    top[i]->Reshape(num_, channels_, 1, 1);
+    top[i]->Reshape(batch, channels_, height, width);
   }
   for (int i = 0; i <= sequences_; ++i){
     lstm_mem_cache_[i]->Reshape(num_, channels_, 1, 1);  
@@ -179,11 +179,11 @@ void PyramidLstmLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     // lstm_layer_->Forward(lstm_bottom_vec_, lstm_top_vec_);
     lstm_layers_[i]->Forward(lstm_bottom_vec_, lstm_top_vec_);
     // copy to output
-    caffe_copy<Dtype>(num_ * channels_, lstm_top_vec_[0]->cpu_data(), 
-      output->mutable_cpu_data());
+    // caffe_copy<Dtype>(num_ * channels_, lstm_top_vec_[0]->cpu_data(), 
+    //   output->mutable_cpu_data());
+    reverse_transpose_blob_forward(lstm_top_vec_[0], output);
     // prepare next computing
-    if ( i < sequences_ - 1)
-    {
+    if ( i < sequences_ - 1){
       previous_hidden_ = lstm_hidden_cache_[i+1];
       current_hidden_  = lstm_hidden_cache_[i+2];
       previous_mem_    = lstm_mem_cache_[i+1];
@@ -217,11 +217,14 @@ void PyramidLstmLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   lstm_top_vec_[1] = current_mem_.get();
   caffe_set<Dtype>(num_ * channels_, Dtype(0.), current_hidden_->mutable_cpu_diff());
   caffe_set<Dtype>(num_ * channels_, Dtype(0.), current_mem_->mutable_cpu_diff());
+  shared_ptr<Blob<Dtype> > top_transposed_tmp;
+  top_transposed_tmp.reset(new Blob<Dtype>(num_, channels_, 1, 1));
   for (int i = sequences_ - 1; i >= 0; --i){
     Blob<Dtype> * output = top[i];
     Blob<Dtype> * input = bottom[i];
-    // add the two branches diff 
-    caffe_cpu_axpby<Dtype>(num_ * channels_, Dtype(1), output->cpu_diff(),
+    // add two branches diff 
+    reverse_transpose_blob_backward(output, top_transposed_tmp.get());
+    caffe_cpu_axpby<Dtype>(num_ * channels_, Dtype(1), top_transposed_tmp->cpu_diff(),
       Dtype(1), lstm_top_vec_[0]->mutable_cpu_diff());
     // BP lstm
     transpose_blob_forward(input, lstm_bottom_vec_[0]);
@@ -263,6 +266,59 @@ void PyramidLstmLayer<Dtype>::transpose_blob_backward(Blob<Dtype> * top,
     transpose_bottom_vec_);
 }
 
+template <typename Dtype>
+void PyramidLstmLayer<Dtype>::reverse_transpose_blob_forward
+  (Blob<Dtype> * bottom, Blob<Dtype> * top){
+  CHECK_EQ(top->count(), bottom->count())
+    << "Need to be the same size";
+  const int num = top->num();
+  const int channels = top->channels();
+  const int height = top->height();
+  const int width = top->width();
+  const int sz1 = height * width;
+  const int sz2 = channels * sz1;
+  const int sz3 = width * channels;
+  Dtype * to = top->mutable_cpu_data();
+  const Dtype * from = bottom->cpu_data();
+  for(int n = 0; n < num; ++ n){
+    for (int c = 0; c < channels; ++ c){
+      for (int h = 0; h < height; ++ h){
+        for (int w = 0; w < width; ++ w){
+            const int ind1 = w + h * width + c * sz1 + n * sz2;
+            const int ind2 = w * channels + h * sz3 + c + n * sz2;
+            to[ind1] = from[ind2];
+        }
+      }
+    }
+  }
+}
+
+template <typename Dtype>
+void PyramidLstmLayer<Dtype>::reverse_transpose_blob_backward
+  (Blob<Dtype> * top, Blob<Dtype> * bottom){
+  CHECK_EQ(top->count(), bottom->count())
+    << "Need to be the same size";
+  const int num = top->num();
+  const int channels = top->channels();
+  const int height = top->height();
+  const int width = top->width();
+  const int sz1 = height * width;
+  const int sz2 = channels * sz1;
+  const int sz3 = width * channels;
+  Dtype * to = bottom->mutable_cpu_diff();
+  const Dtype * from = top->cpu_diff();
+  for(int n = 0; n < num; ++ n){
+    for (int c = 0; c < channels; ++ c){
+      for (int h = 0; h < height; ++ h){
+        for (int w = 0; w < width; ++ w){
+            const int ind1 = w + h * width + c * sz1 + n * sz2;
+            const int ind2 = w * channels + h * sz3 + c + n * sz2;
+            to[ind2] = from[ind1];
+        }
+      }
+    }
+  }
+}
 #ifdef CPU_ONLY
 STUB_GPU(PyramidLstmLayer);
 #endif

@@ -29,7 +29,7 @@ inline Dtype tanh_diff(Dtype x) {
 }
 
 // bottom: N1*K1*1*1 (input), N2*K2*1*1 (previous output), N2*K2*1*1 (memory cell)
-// top: N1*K1*1*1 (output), N2*K2*1*1 (memory cell)
+// top: N2*K2*1*1 (output), N2*K2*1*1 (memory cell)
 template <typename Dtype>
 void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -43,10 +43,6 @@ void LstmUnitLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << "bottom do not have the same data number" << bottom[0]->num();
   CHECK((bottom[1]->channels() == bottom[2]->channels()))
       << "bottom do not have the same data dimension";
-  CHECK((bottom[0]->height() == 1 && bottom[0]->width() == 1 \
-        && bottom[1]->height() == 1 && bottom[1]->width() == 1\
-        && bottom[2]->height() == 1 && bottom[2]->width() == 1))
-      << "bottom spatial dimension is not 1";
 
   // the output dimension
   num_ = bottom[0]->num();

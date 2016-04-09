@@ -36,15 +36,6 @@ class PyramidLstmLayer : public Layer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  void add_to_learnable(vector<shared_ptr<Blob<Dtype> > > &lstm_blobs,
-      vector<shared_ptr<Blob<Dtype> > > &this_blobs){
-    this_blobs.clear();
-    for (int i = 0; i < lstm_blobs.size(); i ++){
-      this_blobs.push_back(lstm_blobs[i]);
-    }
-  }
-  void transpose_blob_forward( Blob<Dtype> * bottom, Blob<Dtype> * top); // to transposed_data_
-  void transpose_blob_backward( Blob<Dtype> * top, Blob<Dtype> * bottom); // to transposed_data_
 
   int channels_;  // memory cells;
   int num_;       // batch size;
@@ -70,8 +61,22 @@ class PyramidLstmLayer : public Layer<Dtype> {
   vector<Blob<Dtype> *> transpose_bottom_vec_;
   vector<Blob<Dtype> *> transpose_top_vec_;
   shared_ptr<Blob<Dtype> > transposed_data_;
-  // there should be reverse transpose layer
-  // TODO
+
+private:
+  void add_to_learnable(vector<shared_ptr<Blob<Dtype> > > &lstm_blobs,
+    vector<shared_ptr<Blob<Dtype> > > &this_blobs){
+    this_blobs.clear();
+    for (int i = 0; i < lstm_blobs.size(); i ++){
+      this_blobs.push_back(lstm_blobs[i]);
+    }
+  }
+  void transpose_blob_forward( Blob<Dtype> * bottom, Blob<Dtype> * top); // to transposed_data_
+  void transpose_blob_backward( Blob<Dtype> * top, Blob<Dtype> * bottom); // to transposed_data_
+  // data (N*H*W)*C -> N*C*H*W
+  void reverse_transpose_blob_forward(Blob<Dtype> * bottom, Blob<Dtype> * top);
+  // diff (N*H*W)*C <- N*C*H*W
+  void reverse_transpose_blob_backward(Blob<Dtype> * top, Blob<Dtype> * bottom);
+
 };
 
 }
