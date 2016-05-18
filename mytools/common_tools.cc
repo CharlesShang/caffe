@@ -253,7 +253,10 @@ void data_augment_ifa_withoutscale(IplImage *img, box b, int normed_width, int n
   //cout << "check point 3\n";
 }
 
-void convert_img_data_ifa(string annotation, int c, int resize_width, int resize_height, string db_path, string backend, float begin_ratio, float end_ratio, bool check_size)
+void convert_img_data_ifa(string annotation, 
+  int c, int resize_width, int resize_height, 
+  string db_path, string backend, 
+  float begin_ratio, float end_ratio, bool check_size)
 {
     // new db
   scoped_ptr<caffe::db::DB> db1(db::GetDB(backend));
@@ -371,7 +374,7 @@ void crop_gray_sample_in_image(IplImage *img, box b, int normed_width, int norme
     static int wrong_box_nums = 0;
     if(b.y2 >= height || b.x2 >= width || b.x1 < 0 || b.y1 < 0)
     {
-        cout << "Error Boxes " << wrong_box_nums << " " << b.x1 << " " << b.y1 << " "<< b.x2<< " "<< b.y2<< endl;
+        LOG(INFO) << "Error Boxes " << wrong_box_nums << " " << b.x1 << " " << b.y1 << " "<< b.x2<< " "<< b.y2;
         wrong_box_nums ++;
     }
     cvSetImageROI(img, rect);
@@ -428,7 +431,7 @@ void crop_sample_in_image(IplImage *img, box b, int normed_width, int normed_hei
     static int wrong_box_nums = 0;
     if(b.y2 >= height || b.x2 >= width || b.x1 < 0 || b.y1 < 0)
     {
-        cout << "Error Boxes " << wrong_box_nums << " " << b.x1 << " " << b.y1 << " "<< b.x2<< " "<< b.y2<< endl;
+        LOG(INFO) << "Error Boxes " << wrong_box_nums << " " << b.x1 << " " << b.y1 << " "<< b.x2<< " "<< b.y2<< endl;
         wrong_box_nums ++;
     }
     cvSetImageROI(img, rect);
@@ -578,7 +581,37 @@ string get_file_stem(string &file_path)
     }
     return stem;
 }
-
+void split_path(string &file_path, string &path, string &name, string &ext)
+{
+    int begin = 0;
+    int end = file_path.size();
+    for(int i = 0; i < file_path.size(); i++)
+    {
+        if(file_path[i] == '\\' || file_path[i] == '/')
+            begin = i + 1;
+        if(file_path[i] == '.') // suppose it's the simplest case
+            end = i;
+    }
+    name.clear();
+    ext.clear();
+    path.clear();
+    if (begin < end && end < file_path.size()){
+        for(int i = begin; i < end; i++)
+        {
+            name = name + file_path[i];
+        }
+        for(int i = end; i < file_path.size(); i++)
+        {
+            ext = ext + file_path[i];
+        }
+        for(int i = 0; i < begin; i++)
+        {
+            path = path + file_path[i];
+        }
+    }
+    else
+      path = file_path;
+}
 void save_dmap_to_datum(float * dmap, int w, int h, Datum &datum)
 {
     datum.set_channels(1);
@@ -832,4 +865,189 @@ void convert_dmap_data(string windows_file_path, string dmap_fold_path, int c, i
     }
   }
   delete [] dmap_data;
+}
+
+void convert_img_data_ped(string prefix,
+  string annotation, 
+  int c, int resize_width, int resize_height, 
+  string db_path, string backend, 
+  float begin_ratio, float end_ratio)
+{
+  // new db
+  scoped_ptr<caffe::db::DB> db_data(db::GetDB(backend));
+  scoped_ptr<caffe::db::DB> db_data_bbrgs(db::GetDB(backend));
+  db_data->Open(db_path, caffe::db::NEW);
+  db_data_bbrgs->Open(db_path+"_bbrgs", caffe::db::NEW);
+  scoped_ptr<db::Transaction> txn(db_data->NewTransaction());
+  scoped_ptr<db::Transaction> txn_bbrgs(db_data_bbrgs->NewTransaction());
+  Datum datum;
+  Datum datum_bbrgs;
+
+  const int kMaxKeyLength = 256;
+  char key_cstr[kMaxKeyLength];
+  int iter_samples = 0;
+
+    // read in images and store them into db
+  vector<vector<box_num> > boxage;
+  vector<vector<box_num> > boxage1;
+  vector<string> img_files;
+  string value;
+  string value1;
+  unsigned char * str_buffer_img;
+  str_buffer_img = new unsigned char[resize_width * resize_height * c];
+  const int num_samples = read_in_annotations_ped(annotation, boxage, boxage1, img_files);
+  LOG(INFO) << "total " << num_samples << " samples";
+  CHECK_EQ(boxage.size(), img_files.size());
+  CHECK_EQ(boxage.size(), boxage1.size());
+  int begin_index = img_files.size() * begin_ratio;
+  int end_index   = img_files.size() * end_ratio;
+  LOG(INFO) << db_path << " Starting from " << begin_index \
+  << " ending with " << end_index;
+  for (int i = begin_index; i < end_index; i++)
+  {
+    // read in image
+    string img_path = img_files[i];
+    if (prefix != ""){
+      string path, name, ext;
+      split_path(img_path, path, name, ext);
+      img_path = prefix + "/" + name + ext;
+    }
+    IplImage *img   = cvLoadImage(img_path.c_str());
+    if (img == 0){
+      LOG(INFO) << img_path << " not exist";
+    }
+    string filestem = get_file_stem(img_path);
+    // LOG(INFO) << boxage[i].size();
+    for (int j = 0; j < boxage[i].size(); j++)
+    {
+      box_num &bn = boxage[i][j];
+      box_num &bn1 = boxage1[i][j];
+      // LOG(INFO) << bn.str();
+      // jump over some cases
+      if (bn.b.y2 - bn.b.y1 < 50){
+        continue;
+      }
+      if (bn.b.x1 < 0 || bn.b.y1 < 0 || bn.b.x2 >= img->width || bn.b.y1 >= img->height
+        || bn1.b.x1 < 0 || bn1.b.y1 < 0 || bn1.b.x2 >= img->width || bn1.b.y1 >= img->height)
+      {
+        continue;
+      }
+      // enlarge box
+      // crop
+      crop_sample_in_image(img, bn.b, resize_width, resize_height, str_buffer_img);
+      int label = cvRound(bn.num);
+      // if (label != 10){
+      //   label = 13;
+      // }
+      int length = snprintf(key_cstr, kMaxKeyLength, "%08d_%s", iter_samples, filestem.c_str());
+      // save to datum
+      datum.set_channels(c);
+      datum.set_height(resize_height);
+      datum.set_width(resize_width);
+      datum.set_data(str_buffer_img, resize_width * resize_height * c);
+      datum.set_label(label);
+      // bb rgs
+      if(label == 10){ // pedestrian
+        bn1.b.x1 = bn.b.x1 - bn1.b.x1;
+        bn1.b.y1 = bn.b.y1 - bn1.b.y1;
+        bn1.b.x2 = bn.b.x2 - bn1.b.x2;
+        bn1.b.y2 = bn.b.y2 - bn1.b.y2;
+      }
+      datum_bbrgs.set_channels(4);
+      datum_bbrgs.set_height(1); 
+      datum_bbrgs.set_width(1);
+      datum_bbrgs.clear_float_data();
+      datum_bbrgs.add_float_data(bn1.b.x1);
+      datum_bbrgs.add_float_data(bn1.b.y1);
+      datum_bbrgs.add_float_data(bn1.b.x2);
+      datum_bbrgs.add_float_data(bn1.b.y2);
+
+      CHECK(datum.SerializeToString(&value));
+      CHECK(datum_bbrgs.SerializeToString(&value1));
+      // check
+      int data_size = datum.channels() * datum.height() * datum.width();
+      int data_size1 = datum_bbrgs.channels() * datum_bbrgs.height() * datum_bbrgs.width();
+      CHECK_EQ(datum.data().size(), data_size) << "Incorrect data field size "
+      << datum.data().size();
+      // LOG(INFO) << "Check " << value1;
+      // CHECK_EQ(datum_bbrgs.data().size(), data_size1) << "Incorrect data field size "
+      // << datum_bbrgs.data().size();
+      // save to db
+      txn->Put(string(key_cstr, length), value);
+      txn_bbrgs->Put(string(key_cstr, length), value1);
+      ++iter_samples;
+      if (iter_samples % 5000 == 0 || i == end_index-1 && j == boxage[i].size()-1) {
+        // Commit db
+        txn->Commit();
+        txn_bbrgs->Commit();
+        txn.reset(db_data->NewTransaction());
+        txn_bbrgs.reset(db_data_bbrgs->NewTransaction());
+        LOG(INFO) << "[IMAGE]" <<"Processed " << iter_samples << " files " << "total " << num_samples;
+        LOG(INFO) << "\tCurrent " << img_path << " Current key " << key_cstr <<" "<< bn.str();
+      }
+    }
+    cvReleaseImage(&img);
+  }
+    delete [] str_buffer_img;
+}
+int read_in_annotations_ped(string annotation,
+  vector<vector<box_num> > &box_ids, vector<vector<box_num> > &box_gts, 
+  vector<string> &img_files)
+{
+  // clear
+  box_ids.clear();
+  box_gts.clear();
+  img_files.clear();
+  // read txt
+  ifstream inf(annotation.c_str());
+  char line[256] = "";
+  int frame_id = 0;
+  int total_number = 0;
+  while(inf.getline(line, 256))
+  {
+    string filename(line);
+    img_files.push_back(filename);
+    // read boxes number
+    // LOG(INFO) << "Check " << filename;
+    int bnum = 0;
+    inf.getline(line, 256);
+    bnum = atoi(line);
+    // LOG(INFO) << "Check " << bnum;
+    total_number += bnum;
+    //cout << "bnum " <<bnum << endl;
+    vector<box_num> bns;
+    vector<box_num> bn1s;
+    // read boxes and nums
+    for (int i = 0; i < bnum; i++)
+    {
+      inf.getline(line, 256);
+      //cout << line << endl;
+      box_num bn;
+      box_num bn1;
+      // % x, y, w, h, scroe, class, gx, gy, gw, gh, oa
+      vector<string> vs = SplitCSVIntoTokens(line);
+      stringstream(vs[5]) >> bn.num;
+      stringstream(vs[0]) >> bn.b.x1;
+      stringstream(vs[1]) >> bn.b.y1;
+      stringstream(vs[2]) >> bn.b.x2;
+      stringstream(vs[3]) >> bn.b.y2;
+      bn.b.x2 = bn.b.x2 + bn.b.x1 -1;  
+      bn.b.y2 = bn.b.y2 + bn.b.y1 -1;
+      stringstream(vs[5]) >> bn1.num;
+      stringstream(vs[0]) >> bn1.b.x1;
+      stringstream(vs[1]) >> bn1.b.y1;
+      stringstream(vs[2]) >> bn1.b.x2;
+      stringstream(vs[3]) >> bn1.b.y2;
+      bn1.b.x2 = bn1.b.x2 + bn1.b.x1 -1;  
+      bn1.b.y2 = bn1.b.y2 + bn1.b.y1 -1;
+      bns.push_back(bn);
+      bn1s.push_back(bn1);
+      // LOG(INFO) << bn.str() << "\t" << bn1.str();
+      // getchar();
+    }
+    box_ids.push_back(bns);
+    box_gts.push_back(bn1s);
+    frame_id ++;
+  }
+  return total_number;
 }

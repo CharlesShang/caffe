@@ -27,8 +27,7 @@ void AbsdistLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   abs = caffe_cpu_asum(count, diff_.cpu_data());
   Dtype loss = abs / bottom[0]->num();
   top[0]->mutable_cpu_data()[0] = loss;
-  for(int i = 0; i < count; i++)
-  {
+  for(int i = 0; i < count; i++){
     diff_.mutable_cpu_data()[i] = diff_.cpu_data()[i] > 0.0 ? 1.0 : -1.0;
   }
 }

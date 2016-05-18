@@ -26,7 +26,7 @@ else()
 endif()
 
 # single test 
-list(APPEND test_args --gtest_filter="*PyramidLstm*")
+list(APPEND test_args --gtest_filter="*ClusteringLayerTestKmeans*")
 # ---[ Adding test target
 add_executable(${the_target} EXCLUDE_FROM_ALL ${test_srcs})
 target_link_libraries(${the_target} gtest ${Caffe_LINK})

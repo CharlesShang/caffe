@@ -52,6 +52,11 @@ typedef struct box box;
 struct box_num{
   float num;
   box b;
+  string str(){
+  	stringstream ss;
+  	ss << num << ":" << b.x1 << " " << b.y1 << " " << b.x2 << " " << b.y2;
+  	return ss.str();
+  };
 };
 typedef struct box_num box_num;
 
@@ -68,6 +73,7 @@ void crop_in_densitymap(vector< vector<float> > &m, box b, int normed_width, int
 void read_in_densitymap(string windows_file, vector< vector<float> > &m);
 
 string get_file_stem(string &file_path);
+void split_path(string &file_path, string &path, string &name, string &ext);
 
 void save_dmap_to_datum(float * dmap, int w, int h, Datum &datum);
 
@@ -84,7 +90,18 @@ int read_in_boxage_ifa_morph(string annotation,
 void crop_sample_in_image_ifa(IplImage *img, box b, int normed_width, int normed_height, unsigned char *str_buffer_img);
 void convert_img_data_ifa(string annotation, int c, int resize_width, int resize_height, string db_path, string backend = "lmdb", float begin_ratio = 0, float end_ratio = 0.01, bool check_size = false);
 void data_augment_ifa(IplImage *img, box b, int normed_width, int normed_height, vector<unsigned char*> &str_buffers);
-
 vector<string> SplitCSVIntoTokens(string line);
 
+// pedestrian
+void convert_img_data_ped(string prefix, 
+	string annotation, 
+	int c, int resize_width, int resize_height, 
+	string db_path, string backend = "lmdb", 
+	float begin_ratio = 0, float end_ratio = 0.01);
+int read_in_annotations_ped(string annotation,
+  vector<vector<box_num> > &box_ids, vector<vector<box_num> > &box_gts, 
+  vector<string> &img_files);
+void crop_sample_in_image(IplImage *img, box b, 
+	int normed_width, int normed_height, 
+	unsigned char *str_buffer_img);
 #endif

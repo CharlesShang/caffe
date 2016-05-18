@@ -44,7 +44,9 @@ int main(int argc, char** argv) {
   }
 
   WriteProtoToBinaryFile(net_param, argv[2]);
-
+  string bin_filename = argv[2];
+  bin_filename.append(".prototxt");
+  WriteProtoToTextFile(net_param, bin_filename.c_str());
   LOG(INFO) << "Wrote upgraded NetParameter binary proto to " << argv[2];
   return !success;
 }

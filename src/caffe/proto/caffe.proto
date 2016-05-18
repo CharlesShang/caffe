@@ -397,7 +397,26 @@ message LayerParameter {
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
   optional PyramidLstmParameter pyramid_lstm_param = 301;
+  optional ClusteringParameter clustering_param = 303;
   optional LstmUnitParameter lstm_unit_param = 302;
+}
+message ClusteringParameter{
+  // k clusters
+  optional uint32 k = 1 [default = 3];
+  // how many classes
+  optional uint32 total_class = 2 [default = 1];
+  // the dimension of the top layer
+  optional uint32 num_output = 3;
+  // auxiliry task's loss weight
+  // lambda * |x-c|
+  optional float lambda = 4 [default = 1.0];
+  // force no branch, only used by gtest
+  optional bool branch = 5 [default = true];
+  // if set across_class false, this layer will 
+  //    generate total_class * k clusters,
+  //    i.e., for each label, there are k clusters,
+  // otherwise, there are only k clusters
+  optional bool across_class = 6 [default = false]; 
 }
 message LstmUnitParameter {
   optional uint32 num_cells = 1;

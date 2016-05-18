@@ -101,11 +101,12 @@ layer {
     stride: 2
   }
 }
+
 layer {
-  name: "ip1"
+  name: "cluster_shortpath"
   type: "InnerProduct"
   bottom: "pool2"
-  top: "ip1"
+  top: "cluster_shortpath"
   param {
     lr_mult: 1
   }
@@ -113,7 +114,7 @@ layer {
     lr_mult: 2
   }
   inner_product_param {
-    num_output: 500
+    num_output: 250
     weight_filler {
       type: "xavier"
     }
@@ -122,20 +123,64 @@ layer {
     }
   }
 }
+
 layer {
-  name: "relu1"
-  type: "ReLU"
-  bottom: "ip1"
-  top: "ip1"
+  name: "cluster_cluster"
+  type: "Clustering"
+  bottom: "pool2"
+  bottom: "label"
+  top: "cluster_cluster"
+  clustering_param {
+    k: 5
+    total_class: 10
+    num_output: 250
+    across_class: true
+    branch: true
+    lambda: 0.000
+  }
+    include {
+    phase: TRAIN
+  }
+}
+
+layer {
+  name: "cluster_cluster"
+  type: "Clustering"
+  bottom: "pool2"
+  top: "cluster_cluster"
+  clustering_param {
+    k: 5
+    total_class: 10
+    num_output: 250
+    across_class: true
+    branch: true
+    lambda: 0.000
+  }
+    include {
+    phase: TEST
+  }
+}
+layer {
+  name: "cluster"
+  type: "Concat"
+  bottom: "cluster_cluster"
+  bottom: "cluster_shortpath"
+  top: "cluster"
 }
 layer {
   name: "dropout"
   type: "Dropout"
-  bottom: "ip1"
-  top: "ip1"
+  bottom: "cluster"
+  top: "cluster"
   dropout_param {
     dropout_ratio: 0.5
   }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "cluster"
+  top: "ip1"
 }
 layer {
   name: "ip2"
@@ -158,10 +203,20 @@ layer {
     }
   }
 }
+
+layer {
+  name: "prob"
+  type: "Softmax"
+  bottom: "ip2"
+  top: "prob"
+  include {
+    phase: TEST
+  }
+}
 layer {
   name: "accuracy"
   type: "Accuracy"
-  bottom: "ip2"
+  bottom: "prob"
   bottom: "label"
   top: "accuracy"
   include {
