@@ -18,7 +18,7 @@
 #define WIDTH  2
 #define HEIGHT 2
 #define CHENNAL 1
-#define NUM 300
+#define NUM 50
 #define NUM_OUT 3
 
 using std::min;
@@ -254,6 +254,8 @@ TYPED_TEST(ClusteringLayerTest, ClusteringLayerTestKmeans) {
   clustering_layer_param->set_k(k);
   clustering_layer_param->set_branch(true); 
   clustering_layer_param->set_across_class(false); 
+  clustering_layer_param->set_data_size(20); 
+  clustering_layer_param->set_dominate(-1); 
 
   ClusteringLayer<Dtype> layer(layer_param);
  
@@ -262,11 +264,12 @@ TYPED_TEST(ClusteringLayerTest, ClusteringLayerTestKmeans) {
   // this->blob_bottom2_ = new Blob<Dtype>(50, 1, 1, 1);
   for (int n = 0; n < NUM; ++n)
   {
-    float r = caffe_rng_rand() % 3 * 10;
+    Dtype r = caffe_rng_rand() % 3 * 10;
     for (int i = 0; i < CHENNAL * WIDTH * HEIGHT; ++i)
     {
       const int idx = n * CHENNAL * WIDTH * HEIGHT + i;
-      this->blob_bottom1_->mutable_cpu_data()[idx] = r + 3.0 * caffe_rng_rand() / UINT_MAX;
+      Dtype noise = 3.0 * caffe_rng_rand() / UINT_MAX;
+      this->blob_bottom1_->mutable_cpu_data()[idx] = r + noise;
     }
     this->blob_bottom2_->mutable_cpu_data()[n] = caffe_rng_rand() % 2;  // label
   }
@@ -277,6 +280,7 @@ TYPED_TEST(ClusteringLayerTest, ClusteringLayerTestKmeans) {
   // do kmeans
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
 
   // checking
   vector<shared_ptr<Blob<Dtype> > > & blobs = layer.blobs();
@@ -286,6 +290,62 @@ TYPED_TEST(ClusteringLayerTest, ClusteringLayerTestKmeans) {
 
   // LOG(ERROR) << "Blob size: " << blobs.size();
   for (int i = total_class * k * 2; i < blobs.size(); ++i)
+  {
+    LOG(ERROR) << this->blob_to_string(blobs[i].get());
+  }
+  
+}
+
+TYPED_TEST(ClusteringLayerTest, ClusteringLayerTestKmeansDominate) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  ClusteringParameter* clustering_layer_param = layer_param.mutable_clustering_param();
+  int total_class = 2;
+  int k = 3;
+  clustering_layer_param->set_num_output(NUM_OUT);
+  clustering_layer_param->set_total_class(total_class);
+  clustering_layer_param->set_k(k);
+  clustering_layer_param->set_branch(true); 
+  clustering_layer_param->set_across_class(false); 
+  clustering_layer_param->set_data_size(20); 
+  clustering_layer_param->set_dominate(1); 
+
+  ClusteringLayer<Dtype> layer(layer_param);
+ 
+  // set data
+  // this->blob_bottom1_ = new Blob<Dtype>(50, CHENNAL, HEIGHT, WIDTH);
+  // this->blob_bottom2_ = new Blob<Dtype>(50, 1, 1, 1);
+  for (int n = 0; n < NUM; ++n)
+  {
+    Dtype r = caffe_rng_rand() % 3 * 10;
+    this->blob_bottom2_->mutable_cpu_data()[n] = caffe_rng_rand() % 2;  // label
+    if (this->blob_bottom2_->mutable_cpu_data()[n] == 1){
+      r += 40;
+    }
+    for (int i = 0; i < CHENNAL * WIDTH * HEIGHT; ++i)
+    {
+      const int idx = n * CHENNAL * WIDTH * HEIGHT + i;
+      Dtype noise = 3.0 * caffe_rng_rand() / UINT_MAX;
+      this->blob_bottom1_->mutable_cpu_data()[idx] = r + noise;
+    }
+  }
+  this->blob_bottom_vec_.resize(2);
+  this->blob_bottom_vec_[0] = this->blob_bottom1_;
+  this->blob_bottom_vec_[1] = this->blob_bottom2_;
+
+  // do kmeans
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+
+  // checking
+  vector<shared_ptr<Blob<Dtype> > > & blobs = layer.blobs();
+  EXPECT_EQ(blobs.size(), 1 * k * 3);
+
+  // LOG(ERROR) << "Blob size: " << UINT_MAX;
+
+  // LOG(ERROR) << "Blob size: " << blobs.size();
+  for (int i = 1 * k * 2; i < blobs.size(); ++i)
   {
     LOG(ERROR) << this->blob_to_string(blobs[i].get());
   }

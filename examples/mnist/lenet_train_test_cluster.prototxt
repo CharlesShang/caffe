@@ -131,12 +131,13 @@ layer {
   bottom: "label"
   top: "cluster_cluster"
   clustering_param {
-    k: 5
+    k: 3
     total_class: 10
     num_output: 250
     across_class: true
     branch: true
-    lambda: 0.000
+    lambda: 0.001
+    data_size: 10000
   }
     include {
     phase: TRAIN
@@ -149,12 +150,13 @@ layer {
   bottom: "pool2"
   top: "cluster_cluster"
   clustering_param {
-    k: 5
+    k: 3
     total_class: 10
     num_output: 250
     across_class: true
     branch: true
-    lambda: 0.000
+    lambda: 0.001
+    data_size: 10000
   }
     include {
     phase: TEST
@@ -180,12 +182,51 @@ layer {
   name: "relu1"
   type: "ReLU"
   bottom: "cluster"
-  top: "ip1"
+  top: "cluster"
 }
+# layer {
+#   name: "cluster_cluster2"
+#   type: "Clustering"
+#   bottom: "cluster"
+#   bottom: "label"
+#   top: "ip2"
+#   clustering_param {
+#     k: 5
+#     total_class: 10
+#     num_output: 10
+#     across_class: true
+#     branch: true
+#     lambda: 0.1
+#     data_size: 5000
+#     dominate: -1
+#   }
+#     include {
+#     phase: TRAIN
+#   }
+# }
+# layer {
+#   name: "cluster_cluster2"
+#   type: "Clustering"
+#   bottom: "cluster"
+#   top: "ip2"
+#   clustering_param {
+#     k: 5
+#     total_class: 10
+#     num_output: 10
+#     across_class: true
+#     branch: true
+#     lambda: 0.1
+#     data_size: 5000
+#     dominate: -1
+#   }
+#     include {
+#     phase: TEST
+#   }
+# }
 layer {
   name: "ip2"
   type: "InnerProduct"
-  bottom: "ip1"
+  bottom: "cluster"
   top: "ip2"
   param {
     lr_mult: 1

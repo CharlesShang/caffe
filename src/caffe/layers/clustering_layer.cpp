@@ -6,6 +6,7 @@ using boost::make_shared;
 #include "caffe/layers/clustering_layer.hpp"
 #include "caffe/layers/inner_product_layer.hpp"
 #include "caffe/util/math_functions.hpp"
+#include <fstream>
 
 namespace caffe {
 
@@ -19,7 +20,10 @@ void ClusteringLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   lambda_ = clustering_param.lambda();  //current layers' loss weight
   branch_ = clustering_param.branch();
   across_class_ = clustering_param.across_class();
+  data_size_ = clustering_param.data_size();
   total_class_  = across_class_ ? 1 : clustering_param.total_class();
+  dominate_ = clustering_param.dominate();
+  total_class_ = dominate_ >= 0 ? 1 : total_class_;
   // CHECK_EQ(bottom.size()==1 || bottom.size()==2, total_class_ == 1)
   //     << "general clustring ";
   // CHECK_EQ(bottom.size()==2, total_class_ == 2) //TODO: make this dynamic
@@ -67,8 +71,8 @@ void ClusteringLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     cache_data_size_[i] = 0;
     cache_data_[i].reset(new Blob<Dtype>());
     cache_label_[i].reset(new Blob<Dtype>());
-    cache_data_[i]->Reshape(CLUSTERING_CACHE_DATA_SIZE_MAX_, channels, height, width);
-    cache_label_[i]->Reshape(CLUSTERING_CACHE_DATA_SIZE_MAX_, 1, 1, 1);
+    cache_data_[i]->Reshape(data_size_, channels, height, width);
+    cache_label_[i]->Reshape(data_size_, 1, 1, 1);
   }
 }
 
@@ -98,11 +102,13 @@ void ClusteringLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     across_class_ = clustering_param.across_class();
     total_class_ = across_class_ ? 1 : clustering_param.total_class();
     k_ = clustering_param.k();
+    data_size_ = clustering_param.data_size();
+    dominate_ = clustering_param.dominate();
+    total_class_ = dominate_ >= 0 ? 1 : total_class_;
     CHECK_EQ(k_ * total_class_ * 3, this->blobs_.size())
       << "clustering k dont match";
     CHECK_EQ(this->blobs_[0]->shape()[0], num_output_) 
       << "clustering layer dimension dont match";
-
     LOG(ERROR) << " check point, num_output: " << num_output_ 
       << " total_class_: " << total_class_ << " k " << k_;
     vector<int> shape(2, 0);
@@ -129,6 +135,7 @@ void ClusteringLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
         centroids_[i].push_back(this->blobs_[cnt++]);
       }
     }
+    centroids_init_ = true;
     LOG(ERROR) << " check point, cnt: " << cnt;
   }
 }
@@ -144,17 +151,21 @@ void ClusteringLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const int sz = channels * height * width;
 
   //LOG(ERROR) << " check point ";
+  
   const Dtype * data  = bottom[0]->cpu_data();
   dist_.resize(num);
   assigned_centers_.resize(num); 
   // testing
-  if(bottom.size() == 1){
+  if(bottom.size() == 1 || this->phase_ == TEST){
 
     // 1. find the neareat
+    std::ofstream of("cluster.txt", ios::app);
+    vector<Dtype> dists;
     for (int n = 0; n < num; ++n){
       Dtype dist, min_dist = 0xFFFFFFFE;
       for (int l = 0; l < total_class_; ++l){
-        int idx = nearest(data + n * sz, sz, k_, centroids_[l], dist);
+        int idx = nearest(data + n * sz, sz, k_, centroids_[l], dists);
+        dist = dists[idx];
         if (min_dist > dist){
           min_dist = dist;
           assigned_centers_[n].first = l;
@@ -162,11 +173,12 @@ void ClusteringLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         }
       }
       dist_[n] = min_dist;
+      of << assigned_centers_[n].second << "\n";
     }
   }
 
   // training
-  else if (bottom.size() == 2){
+  else if (bottom.size() == 2 && this->phase_ == TRAIN){
     // LOG(ERROR) << " check point ";
     const Dtype * label = bottom[1]->cpu_data();
     int min_size = cache_data_size_[0]; 
@@ -175,15 +187,18 @@ void ClusteringLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
 
     
-    if (min_size < CLUSTERING_CACHE_DATA_SIZE_MAX_){
+    if (min_size < data_size_){
 
       // caching data
       // LOG(ERROR) << " check point caching...";
       // LOG(ERROR) << "Caching: " << vector_to_string(cache_data_size_);
       for (int i = 0; i < num; ++i){
-        const int l = across_class_ ? 0 : label[i];
+        const int l = (across_class_ || dominate_ >= 0) ? 0 : label[i];
+        if (dominate_ >= 0 && label[i] != dominate_){
+          continue;
+        }
         int & num1 = cache_data_size_[l];
-        if(num1 < CLUSTERING_CACHE_DATA_SIZE_MAX_){
+        if(num1 < data_size_){
           Dtype * dest = cache_data_[l]->mutable_cpu_data();
           caffe_copy<Dtype>(sz, data + i * sz, dest + num1 * sz);
           num1 ++;
@@ -198,14 +213,28 @@ void ClusteringLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 
       // k means
       // LOG(ERROR) << " check point ";
-      if (min_size >= CLUSTERING_CACHE_DATA_SIZE_MAX_){
+      if (min_size >= data_size_){
         // LOG(ERROR) << " check point kmeans..." << min_size;
         // getchar();
+        double error = 0, sb = 0;
+        vector<int> counts;
         for(int l = 0; l < total_class_; l++){
-          kmeans(cache_data_[l]->cpu_data(), cache_data_[l]->num(), sz, k_, 
-            centroids_[l], cache_label_[l]->mutable_cpu_data());
+          error += kmeans(cache_data_[l]->cpu_data(), cache_data_[l]->num(), sz, k_, 
+            centroids_[l], cache_label_[l]->mutable_cpu_data(), counts, centroids_init_);
+          sb += Sb_cluster(centroids_[l]);
+
+          ostringstream stream; stream << "K " << counts.size() << " (";
+          for (int i = 0; i < counts.size(); ++i){
+            stream << counts[i] << " ";
+          }
+          stream << ")";
+          LOG(ERROR) << stream.str();
+            cache_data_size_[l] = 0; // clear for next
         }
-        LOG(ERROR) << "spliting into " << total_class_ << " x " << k_ <<" nodes";
+        centroids_init_ = true;
+        LOG(ERROR) << "Layer "<< this->layer_param_.name() << " K Means split into " 
+          << total_class_ << " x " << k_ <<" nodes, error: " << error  
+          << " error(ref): " << error / (sb);
         // for (int l = 0; l < total_class_; ++l) {
         //   for (int k = 0; k < k_; ++k) {
         //     LOG(ERROR) << blob_to_string(centroids_[l][k]->cpu_data(), sz);
@@ -214,23 +243,42 @@ void ClusteringLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         // getchar();
       }
 
-      // assign cluster randomly
-      for (int n = 0; n < num; ++n){
-        assigned_centers_[n].first = across_class_ ? 0 : label[n];
-        assigned_centers_[n].second = int(caffe_rng_rand() % k_);
-        dist_[n] = 0;
+      // assign cluster
+      if (centroids_init_){
+        for (int n = 0; n < num; ++n){
+
+          // 1. find the neareat 
+          const int l = (across_class_ || dominate_ >= 0) ? 0 : label[n];
+          vector<Dtype> dists;
+          int idx = nearest(data + n * sz, sz, k_, centroids_[l], dists);
+          assigned_centers_[n].first = l;
+          // assigned_centers_[n].second = idx;
+          assigned_centers_[n].second = mc_infer(dists);
+          // LOG(ERROR) << "idx " << assigned_centers_[n].second;
+          CHECK_LE(assigned_centers_[n].second, k_) << "mc error";
+          dist_[n] = dists[idx];
+          // LOG(ERROR) << n <<" label " << l << " k: " << idx << "(" << k_ << ")" << " dist " << dist;
+        }
+      }else{
+        for (int n = 0; n < num; ++n){
+          assigned_centers_[n].first = (across_class_ || dominate_ >= 0) ? 0 : label[n];
+          assigned_centers_[n].second = int(caffe_rng_rand() % k_);
+          dist_[n] = 0;
+        }
       }
     }
-    else{ // min_size == CLUSTERING_CACHE_DATA_SIZE_MAX_
+    else{ // min_size == data_size_
       for (int n = 0; n < num; ++n){
 
         // 1. find the neareat 
-        const int l = across_class_ ? 0 : label[n];
-        Dtype dist;
-        int idx = nearest(data + n * sz, sz, k_, centroids_[l], dist);
+        const int l = (across_class_ || dominate_ >= 0) ? 0 : label[n];
+        vector<Dtype> dists;
+        int idx = nearest(data + n * sz, sz, k_, centroids_[l], dists);
         assigned_centers_[n].first = l;
-        assigned_centers_[n].second = idx;
-        dist_[n] = dist;
+        // assigned_centers_[n].second = idx;
+        assigned_centers_[n].second = mc_infer(dists);
+        CHECK_LE(assigned_centers_[n].second, k_) << "mc error";
+        dist_[n] = dists[idx];
         // LOG(ERROR) << n <<" label " << l << " k: " << idx << "(" << k_ << ")" << " dist " << dist;
       }
     }
@@ -325,13 +373,31 @@ void ClusteringLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   // LOG(ERROR) << "BP " << stream.str();
 
   // BP through kmeans, this is optianal 
+  if (! centroids_init_)
+      return;
+  Dtype grad_max = bottom[0]->asum_diff() / bottom[0]->count();
   shared_ptr<Blob<Dtype> > tmp;
   tmp.reset(new Blob<Dtype>(1, channels, height, width));
   for (int n = 0; n < num; ++n){
     const int l = assigned_centers_[n].first;
     const int k = assigned_centers_[n].second;
     caffe_sub<Dtype>(sz, bottom_data+n*sz, centroids_[l][k]->cpu_data(), tmp->mutable_cpu_data());
-    caffe_cpu_axpby<Dtype>(sz, Dtype(lambda_ * dist_[n]), tmp->cpu_data(), Dtype(1.0), bottom_diff + n * sz);
+    caffe_sign<Dtype> (sz, tmp->cpu_data(), tmp->mutable_cpu_data(), Dtype(1E-3));
+    Dtype gradient = lambda_ * dist_[n];
+    gradient = grad_max < gradient ? grad_max : gradient;
+    caffe_cpu_axpby<Dtype>(sz, gradient, tmp->cpu_data(), Dtype(1.0), bottom_diff + n * sz);
+    // for (int i = 0; i < total_class_; ++i){
+    //   for (int j = 0; j < k_; ++j) {
+    //     if (l == i && j == k){
+    //       continue;
+    //     }
+    //     caffe_sub<Dtype>(sz, centroids_[i][j]->cpu_data(), bottom_data+n*sz, tmp->mutable_cpu_data());
+    //     caffe_sign<Dtype> (sz, tmp->cpu_data(), tmp->mutable_cpu_data(), Dtype(1E-1));
+    //     Dtype gradient = lambda_ * dist_[n] * 0.00001;
+    //     gradient = grad_max < gradient ? grad_max : gradient;
+    //     caffe_cpu_axpby<Dtype>(sz, gradient, tmp->cpu_data(), Dtype(1.0), bottom_diff + n * sz);
+    //   }
+    // }
   }
 
 }
@@ -360,11 +426,13 @@ void ClusteringLayer<Dtype>::setup_ip_layers(int channels, int height, int width
 }
 
 template <typename Dtype>
-void ClusteringLayer<Dtype>::kmeans(const Dtype * data, int n, int m, int k, 
-  vector<shared_ptr<Blob<Dtype> > > & centroids, Dtype * labels){
+double ClusteringLayer<Dtype>::kmeans(const Dtype * data, int n, int m, int k, 
+  vector<shared_ptr<Blob<Dtype> > > & centroids, Dtype * labels,
+  vector<int> & counts, bool continue_cluster){
   CHECK_EQ(centroids.size(), k) << "centroids size";
   CHECK_EQ(centroids[0]->count(), m) << "dimension";
-  vector<int> counts; counts.resize(k);
+  
+  counts.resize(k);
   double old_error, error = 0xFFFFFFFE;
   const double t = 1E-8;
   const int MAX_ITERS = 100;
@@ -379,7 +447,10 @@ void ClusteringLayer<Dtype>::kmeans(const Dtype * data, int n, int m, int k,
     // int h = n / k * i;
     // caffe_copy<Dtype>(m, data + h * m, centroids[i]->mutable_cpu_data());
   }
-  kmpp(data, n, m, k, centroids);
+  if (! continue_cluster){
+    kmpp(data, n, m, k, centroids);
+  }
+  
 
   shared_ptr<Blob<Dtype> > tmp;
   tmp.reset(new Blob<Dtype>(shape));
@@ -428,7 +499,7 @@ void ClusteringLayer<Dtype>::kmeans(const Dtype * data, int n, int m, int k,
       //   << " Error " << error << " nums: " << vector_to_string(counts);
       // getchar();
   } while (fabs(error - old_error) > t && ++iters < MAX_ITERS);
-
+  return error / n;
 }
 
 template <typename Dtype>
@@ -461,17 +532,19 @@ void ClusteringLayer<Dtype>::kmpp(const Dtype * data, int n, int m, int k,
 
 template <typename Dtype>
 int ClusteringLayer<Dtype>::nearest(const Dtype * data, int m, int k, 
-    vector<shared_ptr<Blob<Dtype> > > & centroids, Dtype & dist){
+    vector<shared_ptr<Blob<Dtype> > > & centroids, vector<Dtype> & dists){
 
   CHECK_EQ(k, centroids.size()) << "clusters number is wrong";
   double disttmp = 0;
   int idx = 0;
-  dist = 0xFFFFFFFE;
+  dists.resize(k);
+  Dtype dist = 0xFFFFFFFE;
   vector<int> shape = centroids[0]->shape();
   shared_ptr<Blob<Dtype> > tmp;
   tmp.reset(new Blob<Dtype>(shape));
   for (int i = 0; i < k; ++i){
     disttmp = cal_dist(m, data, centroids[i]->cpu_data(), tmp->mutable_cpu_data());
+    dists[i] = disttmp;
     if (disttmp < dist){
       dist = disttmp;
       idx = i;
@@ -480,6 +553,32 @@ int ClusteringLayer<Dtype>::nearest(const Dtype * data, int m, int k,
   return idx;
 }
 
+template <typename Dtype>
+int ClusteringLayer<Dtype>::mc_infer(vector<Dtype> & dists)
+{
+  vector<Dtype> p, cdf;
+  p.resize(dists.size());
+  cdf.resize(dists.size());
+  double sum = 0;
+  for (int i = 0; i < dists.size(); ++i){
+    // p[i] = exp(- dists[i] );
+    p[i] = 1 / (dists[i] + 0.001);
+    sum += p[i];
+  }
+  for (int i = 0; i < dists.size(); ++i){
+    p[i] /= sum;
+  }
+  cdf[0] = p[0];
+  for (int i = 1; i < dists.size(); ++i){
+    cdf[i] = cdf[i-1] + p[i];
+  }
+  double r = (caffe_rng_rand() + 0.0) / UINT_MAX;
+  for (int i = 0; i < dists.size(); ++i){
+    if (r < cdf[i]){
+      return i;
+    }
+  }
+}
 
 INSTANTIATE_CLASS(ClusteringLayer);
 REGISTER_LAYER_CLASS(Clustering);

@@ -62,6 +62,9 @@ template <typename Dtype>
 void caffe_sub(const int N, const Dtype* a, const Dtype* b, Dtype* y);
 
 template <typename Dtype>
+void caffe_sign(const int N, const Dtype* a, Dtype* y, Dtype epsilon = 0);
+
+template <typename Dtype>
 void caffe_mul(const int N, const Dtype* a, const Dtype* b, Dtype* y);
 
 template <typename Dtype>

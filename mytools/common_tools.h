@@ -25,6 +25,7 @@
 #include "caffe/util/db.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/rng.hpp"
+#include "caffe/util/math_functions.hpp"
 
 using namespace std;
 using namespace cv;

@@ -151,6 +151,20 @@ void caffe_sub<double>(const int n, const double* a, const double* b,
 }
 
 template <>
+void caffe_sign<float>(const int n, const float* a, float* y, float epsilon) {
+  for (int i = 0; i < n; ++i){
+    y[i] = a[i] <= epsilon && a[i] >= -epsilon ? 0 : a[i] > 0 ? 1 : -1;
+  }
+}
+
+template <>
+void caffe_sign<double>(const int n, const double* a, double* y, double epsilon) {
+  for (int i = 0; i < n; ++i){
+    y[i] = a[i] <= epsilon && a[i] >= -epsilon ? 0 : a[i] > 0 ? 1 : -1;
+  }
+}
+
+template <>
 void caffe_mul<float>(const int n, const float* a, const float* b,
     float* y) {
   vsMul(n, a, b, y);

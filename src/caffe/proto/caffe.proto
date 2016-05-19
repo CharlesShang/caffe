@@ -417,6 +417,11 @@ message ClusteringParameter{
   //    i.e., for each label, there are k clusters,
   // otherwise, there are only k clusters
   optional bool across_class = 6 [default = false]; 
+  // caching at least data_size samples for kmeans
+  optional uint32 data_size = 7 [default = 1000];
+  // dominative label, -1 denotes no dominative labels, i.e., all labels are
+  // treated with the same 
+  optional int32 dominate = 8 [default = -1];
 }
 message LstmUnitParameter {
   optional uint32 num_cells = 1;

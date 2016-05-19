@@ -22,7 +22,7 @@ template <typename Dtype>
 class ClusteringLayer : public Layer<Dtype> {
  public:
   explicit ClusteringLayer(const LayerParameter& param)
-      : Layer<Dtype>(param), param_seted_(false){}
+      : Layer<Dtype>(param), param_seted_(false), centroids_init_(false){}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);      
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
@@ -44,6 +44,8 @@ class ClusteringLayer : public Layer<Dtype> {
   Dtype lambda_;  // loss weight
   bool branch_;
   bool across_class_;
+  bool centroids_init_; 
+  int dominate_;
   
   // total_class * k clusters, each shape 1 * c * h * w
   vector<vector<shared_ptr<Blob<Dtype> > > > centroids_; 
@@ -62,6 +64,7 @@ class ClusteringLayer : public Layer<Dtype> {
   // cache data during BP
   // perform kmeans after caching enough data
 #define CLUSTERING_CACHE_DATA_SIZE_MAX_  10000
+  int data_size_;
   vector<int> cache_data_size_;           // total_class * cache_data_size
   vector<shared_ptr<Blob<Dtype> > > cache_data_; 
   vector<shared_ptr<Blob<Dtype> > > cache_label_;
@@ -76,11 +79,12 @@ class ClusteringLayer : public Layer<Dtype> {
   void setup_ip_layers(int channels, int height, int width);
 
   // kmeans functions
-  void kmeans(const Dtype * data, int n, int m, int k, 
+  double kmeans(const Dtype * data, int n, int m, int k, 
     vector<shared_ptr<Blob<Dtype> > > & centroids,
-    Dtype * labels);
+    Dtype * labels, vector<int> & counts, bool continue_cluster = false);
+  int mc_infer(vector<Dtype> & dists);
   int nearest(const Dtype * data, int m, int k, 
-    vector<shared_ptr<Blob<Dtype> > > & centroids, Dtype & dist);
+    vector<shared_ptr<Blob<Dtype> > > & centroids, vector<Dtype> & dists);
   double cal_dist(int m, const Dtype * x, const Dtype * y, Dtype *tmp){
     // WRONG!!!
     // caffe_sub<Dtype>(m, x, y, tmp);
@@ -88,13 +92,15 @@ class ClusteringLayer : public Layer<Dtype> {
     // return caffe_cpu_dot<Dtype>(m, tmp, tmp) * 0.5;
     double dist = 0;
     for (int i = 0; i < m; ++i){
-      dist += (x[i] - y[i]) * (x[i] - y[i]);
+      // dist += (x[i] - y[i]) * (x[i] - y[i]);
+      dist += fabs(x[i] - y[i]);
     }
     return dist * 0.5;
   }
   double cal_dist(int m, const Dtype * x, const Dtype * y, Blob<Dtype>* tmp){
     caffe_sub<Dtype>(m, x, y, tmp->mutable_cpu_data());
-    return tmp->sumsq_data() * 0.5;
+    //return tmp->sumsq_data() * 0.5;
+    return tmp->asum_data();
   }
   // kmeans ++ init
   void kmpp(const Dtype * data, int n, int m, int k, 
@@ -115,6 +121,19 @@ class ClusteringLayer : public Layer<Dtype> {
       stream << data[i] << " ";
     }
     return stream.str();
+  }
+  inline double Sb_cluster(vector<shared_ptr<Blob<Dtype> > > & centroids) {
+    shared_ptr<Blob<Dtype> > tmp;
+    tmp.reset(new Blob<Dtype>(centroids[0]->count(),1,1,1));
+    double total_dist = 0;
+    int cnt = 0;
+    for (int i = 0; i < centroids.size(); ++i)
+      for (int j = i+1; j < centroids.size(); ++j){
+        total_dist += cal_dist(centroids[0]->count(), centroids[i]->cpu_data(), 
+          centroids[j]->cpu_data(), tmp.get());
+        cnt ++;
+      }
+    return total_dist /= cnt;
   }
 };
 

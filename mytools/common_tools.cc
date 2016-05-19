@@ -1,4 +1,5 @@
 #include "common_tools.h"
+#include "caffe/util/math_functions.hpp"
 
 vector<string> SplitCSVIntoTokens(string line)
 {
@@ -429,7 +430,7 @@ void crop_sample_in_image(IplImage *img, box b, int normed_width, int normed_hei
     rect.height = y2 - y1 + 1;
     rect.width = x2 - x1 + 1;
     static int wrong_box_nums = 0;
-    if(b.y2 >= height || b.x2 >= width || b.x1 < 0 || b.y1 < 0)
+    if(b.y2 > height || b.x2 > width || b.x1 < 0 || b.y1 < 0)
     {
         LOG(INFO) << "Error Boxes " << wrong_box_nums << " " << b.x1 << " " << b.y1 << " "<< b.x2<< " "<< b.y2<< endl;
         wrong_box_nums ++;
@@ -903,6 +904,7 @@ void convert_img_data_ped(string prefix,
   int end_index   = img_files.size() * end_ratio;
   LOG(INFO) << db_path << " Starting from " << begin_index \
   << " ending with " << end_index;
+  vector<int> data_num(2, 0);
   for (int i = begin_index; i < end_index; i++)
   {
     // read in image
@@ -936,58 +938,65 @@ void convert_img_data_ped(string prefix,
       // crop
       crop_sample_in_image(img, bn.b, resize_width, resize_height, str_buffer_img);
       int label = cvRound(bn.num);
-      // if (label != 10){
-      //   label = 13;
-      // }
-      int length = snprintf(key_cstr, kMaxKeyLength, "%08d_%s", iter_samples, filestem.c_str());
-      // save to datum
-      datum.set_channels(c);
-      datum.set_height(resize_height);
-      datum.set_width(resize_width);
-      datum.set_data(str_buffer_img, resize_width * resize_height * c);
-      datum.set_label(label);
-      // bb rgs
-      if(label == 10){ // pedestrian
-        bn1.b.x1 = bn.b.x1 - bn1.b.x1;
-        bn1.b.y1 = bn.b.y1 - bn1.b.y1;
-        bn1.b.x2 = bn.b.x2 - bn1.b.x2;
-        bn1.b.y2 = bn.b.y2 - bn1.b.y2;
-      }
-      datum_bbrgs.set_channels(4);
-      datum_bbrgs.set_height(1); 
-      datum_bbrgs.set_width(1);
-      datum_bbrgs.clear_float_data();
-      datum_bbrgs.add_float_data(bn1.b.x1);
-      datum_bbrgs.add_float_data(bn1.b.y1);
-      datum_bbrgs.add_float_data(bn1.b.x2);
-      datum_bbrgs.add_float_data(bn1.b.y2);
+      label = label == 11 ? 1 : 0;
 
-      CHECK(datum.SerializeToString(&value));
-      CHECK(datum_bbrgs.SerializeToString(&value1));
-      // check
-      int data_size = datum.channels() * datum.height() * datum.width();
-      int data_size1 = datum_bbrgs.channels() * datum_bbrgs.height() * datum_bbrgs.width();
-      CHECK_EQ(datum.data().size(), data_size) << "Incorrect data field size "
-      << datum.data().size();
-      // LOG(INFO) << "Check " << value1;
-      // CHECK_EQ(datum_bbrgs.data().size(), data_size1) << "Incorrect data field size "
-      // << datum_bbrgs.data().size();
-      // save to db
-      txn->Put(string(key_cstr, length), value);
-      txn_bbrgs->Put(string(key_cstr, length), value1);
-      ++iter_samples;
-      if (iter_samples % 5000 == 0 || i == end_index-1 && j == boxage[i].size()-1) {
+      double r = (0.0 + caffe::caffe_rng_rand()) / UINT_MAX;
+      if (r > 0.98 && label != 1 || label == 1){
+        data_num[label] ++;
+        int length = snprintf(key_cstr, kMaxKeyLength, "%08d_%s", iter_samples, filestem.c_str());
+        // save to datum
+        datum.set_channels(c);
+        datum.set_height(resize_height);
+        datum.set_width(resize_width);
+        datum.set_data(str_buffer_img, resize_width * resize_height * c);
+        datum.set_label(label);
+        // bb rgs
+        if(label == 1){ // pedestrian
+          bn1.b.x1 = bn.b.x1 - bn1.b.x1;
+          bn1.b.y1 = bn.b.y1 - bn1.b.y1;
+          bn1.b.x2 = bn.b.x2 - bn1.b.x2;
+          bn1.b.y2 = bn.b.y2 - bn1.b.y2;
+        }
+        datum_bbrgs.set_channels(4);
+        datum_bbrgs.set_height(1); 
+        datum_bbrgs.set_width(1);
+        datum_bbrgs.clear_float_data();
+        datum_bbrgs.add_float_data(bn1.b.x1);
+        datum_bbrgs.add_float_data(bn1.b.y1);
+        datum_bbrgs.add_float_data(bn1.b.x2);
+        datum_bbrgs.add_float_data(bn1.b.y2);
+
+        CHECK(datum.SerializeToString(&value));
+        CHECK(datum_bbrgs.SerializeToString(&value1));
+        // check
+        int data_size = datum.channels() * datum.height() * datum.width();
+        int data_size1 = datum_bbrgs.channels() * datum_bbrgs.height() * datum_bbrgs.width();
+        CHECK_EQ(datum.data().size(), data_size) << "Incorrect data field size "
+        << datum.data().size();
+        // LOG(INFO) << "Check " << value1;
+        // CHECK_EQ(datum_bbrgs.data().size(), data_size1) << "Incorrect data field size "
+        // << datum_bbrgs.data().size();
+        // save to db
+        txn->Put(string(key_cstr, length), value);
+        txn_bbrgs->Put(string(key_cstr, length), value1);
+        ++iter_samples; 
+      }
+      
+      if (iter_samples % 1000 == 0 || i == end_index-1 && j == boxage[i].size()-1) {
         // Commit db
         txn->Commit();
         txn_bbrgs->Commit();
         txn.reset(db_data->NewTransaction());
         txn_bbrgs.reset(db_data_bbrgs->NewTransaction());
-        LOG(INFO) << "[IMAGE]" <<"Processed " << iter_samples << " files " << "total " << num_samples;
-        LOG(INFO) << "\tCurrent " << img_path << " Current key " << key_cstr <<" "<< bn.str();
+        if (iter_samples % 1000 == 0){
+          LOG(INFO) << "[IMAGE]" <<"Processed " << iter_samples << " files " << "total " << num_samples;
+          LOG(INFO) << "\tCurrent " << img_path << " Current key " << key_cstr <<" "<< bn.str();
+        }
       }
     }
     cvReleaseImage(&img);
   }
+  LOG(INFO) << "data nums: " << data_num[0] << " " << data_num[1] ;
     delete [] str_buffer_img;
 }
 int read_in_annotations_ped(string annotation,
@@ -1003,6 +1012,7 @@ int read_in_annotations_ped(string annotation,
   char line[256] = "";
   int frame_id = 0;
   int total_number = 0;
+  double overlap = 0;
   while(inf.getline(line, 256))
   {
     string filename(line);
@@ -1013,7 +1023,6 @@ int read_in_annotations_ped(string annotation,
     inf.getline(line, 256);
     bnum = atoi(line);
     // LOG(INFO) << "Check " << bnum;
-    total_number += bnum;
     //cout << "bnum " <<bnum << endl;
     vector<box_num> bns;
     vector<box_num> bn1s;
@@ -1031,17 +1040,27 @@ int read_in_annotations_ped(string annotation,
       stringstream(vs[1]) >> bn.b.y1;
       stringstream(vs[2]) >> bn.b.x2;
       stringstream(vs[3]) >> bn.b.y2;
+
+      stringstream(vs[5]) >> bn1.num;
+      stringstream(vs[6]) >> bn1.b.x1;
+      stringstream(vs[7]) >> bn1.b.y1;
+      stringstream(vs[8]) >> bn1.b.x2;
+      stringstream(vs[9]) >> bn1.b.y2;
+      stringstream(vs[9]) >> overlap;
+      // caltech resonable set
+      if ((bn1.b.y2 < 50 && bn.num == 11) || (bn.num == 10 && overlap < 0.5)){
+        continue;
+      }
+      // if ((bn.b.y2 < 50 && bn.num == 11)){
+      //   continue;
+      // }
       bn.b.x2 = bn.b.x2 + bn.b.x1 -1;  
       bn.b.y2 = bn.b.y2 + bn.b.y1 -1;
-      stringstream(vs[5]) >> bn1.num;
-      stringstream(vs[0]) >> bn1.b.x1;
-      stringstream(vs[1]) >> bn1.b.y1;
-      stringstream(vs[2]) >> bn1.b.x2;
-      stringstream(vs[3]) >> bn1.b.y2;
       bn1.b.x2 = bn1.b.x2 + bn1.b.x1 -1;  
       bn1.b.y2 = bn1.b.y2 + bn1.b.y1 -1;
       bns.push_back(bn);
       bn1s.push_back(bn1);
+      total_number ++;
       // LOG(INFO) << bn.str() << "\t" << bn1.str();
       // getchar();
     }
