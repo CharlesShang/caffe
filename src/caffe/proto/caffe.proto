@@ -399,6 +399,7 @@ message LayerParameter {
   optional PyramidLstmParameter pyramid_lstm_param = 301;
   optional ClusteringParameter clustering_param = 303;
   optional LstmUnitParameter lstm_unit_param = 302;
+  optional MultipleInnerProductParameter multiple_inner_product_param = 304;
 }
 message ClusteringParameter{
   // k clusters
@@ -422,6 +423,14 @@ message ClusteringParameter{
   // dominative label, -1 denotes no dominative labels, i.e., all labels are
   // treated with the same 
   optional int32 dominate = 8 [default = -1];
+}
+message MultipleInnerProductParameter{
+  // number of layers
+  optional uint32 num_layer = 1 [default = 1];
+  // number of hidden units of each layer
+  repeated uint32 num_outputs = 2;
+  // activation between the hidden layers
+  optional string activation = 3 [default = "ReLU"];
 }
 message LstmUnitParameter {
   optional uint32 num_cells = 1;
