@@ -37,5 +37,5 @@ STUB_GPU(NoBPLayer);
 #endif
 
 INSTANTIATE_CLASS(NoBPLayer);
-
+REGISTER_LAYER_CLASS(NoBP);
 }  // namespace caffe
