@@ -8,7 +8,8 @@
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/layers/inner_product_layer.hpp"
 #include "caffe/layers/relu_layer.hpp"
-using google::protobuf::RepeatedPtrField;
+#include "caffe/layers/sigmoid_layer.hpp"
+#include "caffe/layers/neuron_layer.hpp"
 
 namespace caffe {
 
@@ -40,6 +41,7 @@ class MultipleInnerProductLayer : public Layer<Dtype> {
   shared_ptr<ReLULayer<Dtype> > relu_layer_;
   int num_layer_;
   vector<int> num_outputs_;
+  string activation_;
   // hidden_data_vec_.size() == num_layer_ - 1
   vector<shared_ptr<Blob<Dtype> > > hidden_data_vec_;
   // only for forward IP layers

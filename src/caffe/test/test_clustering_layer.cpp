@@ -18,8 +18,10 @@
 #define WIDTH  2
 #define HEIGHT 2
 #define CHENNAL 1
-#define NUM 50
+#define NUM 10
 #define NUM_OUT 3
+#define DATA_SIZE 20  // at least DATA_SIZE for kmeans
+#define NUM_LAYER 2
 
 using std::min;
 using std::max;
@@ -139,8 +141,9 @@ TYPED_TEST(ClusteringLayerTest, TestGradient) {
   clustering_layer_param->set_total_class(2);
   clustering_layer_param->set_branch(false); 
   clustering_layer_param->set_across_class(false); 
+  clustering_layer_param->set_data_size(DATA_SIZE);
   ClusteringLayer<Dtype> layer(layer_param);
-  // GradientChecker<Dtype> checker(1e-2, 1e-2);
+
   GradientChecker<Dtype> checker(1e-2, 1e-2);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
 
@@ -163,9 +166,9 @@ TYPED_TEST(ClusteringLayerTest, TestGradientACROSSLABEL) {
   clustering_layer_param->set_total_class(3);
   clustering_layer_param->set_branch(false); 
   clustering_layer_param->set_across_class(false); 
-
+  clustering_layer_param->set_data_size(DATA_SIZE);
   ClusteringLayer<Dtype> layer(layer_param);
-  // GradientChecker<Dtype> checker(1e-2, 1e-2);
+
   GradientChecker<Dtype> checker(1e-2, 1e-2);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
 
@@ -189,6 +192,7 @@ TYPED_TEST(ClusteringLayerTest, TestReshapeForwardForTest) {
   clustering_layer_param->set_branch(false); 
   clustering_layer_param->set_across_class(true); 
   clustering_layer_param->set_k(K); 
+  clustering_layer_param->set_num_layer(1); 
 
   ClusteringLayer<Dtype> layer(layer_param);
   layer.blobs().resize(K * 3);
@@ -237,8 +241,8 @@ TYPED_TEST(ClusteringLayerTest, TestReshapeForwardForTest) {
     layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
   }
 
-  LOG(ERROR) << this->blob_to_string(this->blob_bottom_vec_[0]);
-  LOG(ERROR) << this->blob_to_string(this->blob_top_vec_[0]);
+  // LOG(ERROR) << this->blob_to_string(this->blob_bottom_vec_[0]);
+  // LOG(ERROR) << this->blob_to_string(this->blob_top_vec_[0]);
   // LOG(ERROR) << " check point " ;
   // getchar();
 }

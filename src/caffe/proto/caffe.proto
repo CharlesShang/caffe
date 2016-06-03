@@ -423,6 +423,11 @@ message ClusteringParameter{
   // dominative label, -1 denotes no dominative labels, i.e., all labels are
   // treated with the same 
   optional int32 dominate = 8 [default = -1];
+  // the layer number of each branch
+  // used to setup the multiple inner product layer
+  optional uint32 num_layer = 9 [default = 1];
+  // soft assignment
+  optional bool soft = 10 [default = false];
 }
 message MultipleInnerProductParameter{
   // number of layers

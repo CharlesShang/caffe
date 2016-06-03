@@ -12,15 +12,18 @@ void MultipleInnerProductLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& b
 
   vector<Blob<Dtype>*> blob_bottom_vec(1, NULL), blob_top_vec(1, NULL);
   blob_top_vec[0] = bottom[0];
-  for (int i = 0; i < num_layer_ - 1; ++i)
-  {
+  for (int i = 0; i < num_layer_ - 1; ++i){
     blob_bottom_vec[0] = blob_top_vec[0];
     blob_top_vec[0]    = hidden_data_vec_[i].get();
     ip_layers_[i]->Forward(blob_bottom_vec, blob_top_vec);
-    relu_layer_->Forward(blob_top_vec, blob_top_vec);
+    if(activation_ != "None"){
+      relu_layer_->Forward(blob_top_vec, blob_top_vec);
+    }
   }
   ip_layers_[num_layer_ - 1]->Forward(blob_top_vec, top);
-  relu_layer_->Forward(top, top);
+  if(activation_ != "None"){
+    relu_layer_->Forward(top, top);
+  }
 
 }
 
@@ -34,10 +37,14 @@ void MultipleInnerProductLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& 
   for (int i = num_layer_ - 1; i > 0; --i){
     blob_top_vec[0] = blob_bottom_vec[0];
     blob_bottom_vec[0] = hidden_data_vec_[i-1].get();
-    relu_layer_->Backward(blob_top_vec, propagate_down, blob_top_vec);
+    if(activation_ != "None"){
+      relu_layer_->Backward(blob_top_vec, propagate_down, blob_top_vec);
+    }
     ip_layers_[i]->Backward(blob_top_vec, propagate_down, blob_bottom_vec);
   }
-  relu_layer_->Backward(blob_bottom_vec, propagate_down, blob_bottom_vec);
+  if(activation_ != "None"){
+    relu_layer_->Backward(blob_bottom_vec, propagate_down, blob_bottom_vec);
+  }
   ip_layers_[0]->Backward(blob_bottom_vec, propagate_down, bottom);
 
 }

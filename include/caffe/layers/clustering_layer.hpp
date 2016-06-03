@@ -8,6 +8,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/layers/inner_product_layer.hpp"
+#include "caffe/layers/multiple_inner_product_layer.hpp"
 
 namespace caffe {
 
@@ -22,7 +23,7 @@ template <typename Dtype>
 class ClusteringLayer : public Layer<Dtype> {
  public:
   explicit ClusteringLayer(const LayerParameter& param)
-      : Layer<Dtype>(param), param_seted_(false), centroids_init_(false){}
+      : Layer<Dtype>(param), param_seted_(false), centroids_init_(false), num_layer_(1){}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);      
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
@@ -46,13 +47,16 @@ class ClusteringLayer : public Layer<Dtype> {
   bool across_class_;
   bool centroids_init_; 
   int dominate_;
+  bool soft_;
   
   // total_class * k clusters, each shape 1 * c * h * w
   vector<vector<shared_ptr<Blob<Dtype> > > > centroids_; 
 
   // ip layers
   int num_output_;
+  int num_layer_;
   vector<vector<shared_ptr<InnerProductLayer<Dtype> > > > ip_layer_vec_; // each cluster should has a distict transform
+  vector<vector<shared_ptr<MultipleInnerProductLayer<Dtype> > > > mip_layer_vec_; // each cluster should has a distict transform
   vector<Blob<Dtype> *>  ip_top_vec_; // 
   vector<Blob<Dtype> *>  ip_bottom_vec_; // 
 
@@ -77,6 +81,7 @@ class ClusteringLayer : public Layer<Dtype> {
     }
   }
   void setup_ip_layers(int channels, int height, int width);
+  void setup_mip_layers(int channels, int height, int width);
 
   // kmeans functions
   double kmeans(const Dtype * data, int n, int m, int k, 
