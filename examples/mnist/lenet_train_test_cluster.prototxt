@@ -131,13 +131,13 @@ layer {
   bottom: "label"
   top: "cluster_cluster"
   clustering_param {
-    k: 3
+    k: 20
     total_class: 10
     num_output: 250
     across_class: true
     branch: true
     lambda: 0.001
-    data_size: 10000
+    data_size: 20000
   }
     include {
     phase: TRAIN
@@ -150,13 +150,13 @@ layer {
   bottom: "pool2"
   top: "cluster_cluster"
   clustering_param {
-    k: 3
+    k: 20
     total_class: 10
     num_output: 250
     across_class: true
     branch: true
     lambda: 0.001
-    data_size: 10000
+    data_size: 20000
   }
     include {
     phase: TEST

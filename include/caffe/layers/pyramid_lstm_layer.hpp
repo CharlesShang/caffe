@@ -43,7 +43,7 @@ class PyramidLstmLayer : public Layer<Dtype> {
 
   // lstm unit
   shared_ptr<LstmUnitLayer<Dtype> > lstm_layer_;
-  // all the layers should share the same blobs_
+  // all the layers should share the same blobs_(weights), but different memory cells
   vector<shared_ptr<LstmUnitLayer<Dtype> > > lstm_layers_;
   vector<Blob<Dtype> *> lstm_bottom_vec_;
   vector<Blob<Dtype> *> lstm_top_vec_;

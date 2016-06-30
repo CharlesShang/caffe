@@ -4,6 +4,7 @@
 DIR="$( cd "$(dirname "$0")" ; pwd -P )"
 cd $DIR
 
+echo $DIR
 echo "Downloading..."
 
 wget --no-check-certificate http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz

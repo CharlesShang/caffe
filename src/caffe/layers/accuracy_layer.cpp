@@ -86,10 +86,10 @@ void AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
           if (top.size() > 1) ++top[1]->mutable_cpu_data()[label_value];
           break;
         }
-        else{
-          if (label_value == 1)
-            LOG(ERROR) <<"Wrong: " <<bottom_data_vector[k].first << " " << bottom_data_vector[k].second << " " << label_value;
-        }
+        // else{
+        //   if (label_value == 1)
+        //     LOG(ERROR) <<"Wrong: " <<bottom_data_vector[k].first << " " << bottom_data_vector[k].second << " " << label_value;
+        // }
       }
       ++count;
     }
