@@ -189,7 +189,8 @@ void crop_sample_in_image_ifa(IplImage *img, box b, int normed_width, int normed
 void data_augment_ifa(IplImage *img, box b, int normed_width, int normed_height, vector<unsigned char*> &str_buffers)
 {
   cv::Mat matimg, matblur;
-  matimg = cv::Mat(img);
+  // matimg = cv::Mat(img);
+  matimg = cv::cvarrToMat(img);
   // origin
   // cout << "Image " << img->width << " " << img->height <<endl;
   b.x1 = b.x1 >= 0? b.x1:0;
@@ -223,7 +224,8 @@ void data_augment_ifa(IplImage *img, box b, int normed_width, int normed_height,
 void data_augment_ifa_withoutscale(IplImage *img, box b, int normed_width, int normed_height, vector<unsigned char*> &str_buffers)
 {
   cv::Mat matimg, matblur;
-  matimg = cv::Mat(img);
+  // matimg = cv::Mat(img);
+  matimg = cv::cvarrToMat(img);
   // origin
   // cout << "Image " << img->width << " " << img->height <<endl;
   b.x1 = b.x1 >= 0? b.x1:0;
